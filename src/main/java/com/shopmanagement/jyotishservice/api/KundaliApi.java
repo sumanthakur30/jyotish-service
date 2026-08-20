@@ -146,4 +146,35 @@ public final class KundaliApi {
       String notes,
       String interpretationPlaceholder,
       Instant asOf) {}
+
+  /** Catalog entry for GET .../yogas — implemented vs Coming Soon. */
+  public record YogaCatalogItem(
+      String yogaCode,
+      String displayName,
+      String categoryCode,
+      String categoryName,
+      boolean implemented,
+      String status) {}
+
+  public record YogaDto(
+      String yogaCode,
+      String displayName,
+      String categoryCode,
+      String categoryName,
+      boolean present,
+      String strengthCode,
+      String strengthLabel,
+      List<String> planets,
+      List<Integer> houses,
+      String explanation,
+      String ruleId) {}
+
+  public record YogaListResponse(
+      Long kundaliId,
+      String calculationEngineVersion,
+      String categoryFilter,
+      List<YogaDto> yogas,
+      List<YogaCatalogItem> catalog,
+      String notes,
+      String disclaimer) {}
 }

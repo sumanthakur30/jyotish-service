@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -16,6 +17,7 @@ import com.shopmanagement.jyotishservice.api.KundaliApi.HouseListResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.KundaliResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.PlanetListResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.VargaChartResponse;
+import com.shopmanagement.jyotishservice.api.KundaliApi.YogaListResponse;
 import com.shopmanagement.jyotishservice.service.KundaliService;
 
 import jakarta.validation.Valid;
@@ -69,5 +71,11 @@ public class KundaliController {
   @GetMapping("/{id}/dasha/{system}")
   public DashaResponse dasha(@PathVariable Long id, @PathVariable String system) {
     return kundaliService.getDasha(id, system);
+  }
+
+  @GetMapping("/{id}/yogas")
+  public YogaListResponse yogas(
+      @PathVariable Long id, @RequestParam(required = false) String category) {
+    return kundaliService.getYogas(id, category);
   }
 }

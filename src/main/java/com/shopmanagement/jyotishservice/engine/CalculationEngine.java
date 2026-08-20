@@ -25,16 +25,28 @@ import com.shopmanagement.jyotishservice.engine.model.VargaChart;
 import com.shopmanagement.jyotishservice.engine.varga.VargaCode;
 import com.shopmanagement.jyotishservice.engine.varga.VargaMapper;
 import com.shopmanagement.jyotishservice.engine.varga.VargaRegistry;
+import com.shopmanagement.jyotishservice.engine.matching.MatchingPerson;
+import com.shopmanagement.jyotishservice.engine.matching.MatchingRegistry;
+import com.shopmanagement.jyotishservice.engine.matching.MatchingReport;
+import com.shopmanagement.jyotishservice.engine.transit.TransitChart;
+import com.shopmanagement.jyotishservice.engine.transit.TransitRegistry;
+import com.shopmanagement.jyotishservice.engine.transit.TransitRequest;
+import com.shopmanagement.jyotishservice.engine.transit.TransitSystemCode;
+import com.shopmanagement.jyotishservice.engine.yoga.YogaContext;
+import com.shopmanagement.jyotishservice.engine.yoga.YogaRegistry;
+import com.shopmanagement.jyotishservice.engine.yoga.YogaReport;
 
 /**
- * Pure calculation engine (no Spring). V1.2 sidereal D1 via {@link MeeusEphemeris} + configurable
- * ayanamsa, Parashara Vargas (D2/D3/D9/D10) via {@link VargaRegistry}, and Vimshottari dasha via
- * {@link DashaRegistry}. Whole-sign houses. Combust is stubbed false (Coming Soon).
+ * Pure calculation engine (no Spring). V1.5 sidereal D1 via {@link MeeusEphemeris} + configurable
+ * ayanamsa, Parashara Vargas (D2/D3/D9/D10) via {@link VargaRegistry}, Vimshottari dasha via
+ * {@link DashaRegistry}, rule-based yogas via {@link YogaRegistry}, Kundali matching via
+ * {@link MatchingRegistry}, and Gochar transit via {@link TransitRegistry}. Whole-sign houses.
+ * Combust is stubbed false (Coming Soon).
  */
 public final class CalculationEngine {
 
-  /** Bumped to V1.2 when Vimshottari dasha algorithm surface was added (Phase 4). */
-  public static final String VERSION = "V1.2";
+  /** Bumped to V1.5 when Gochar / Transit surface was added (Phase 7). */
+  public static final String VERSION = "V1.5";
 
   private static final EnumSet<Planet> CHART_PLANETS =
       EnumSet.of(
@@ -194,6 +206,49 @@ public final class CalculationEngine {
       DashaSystemCode system, double moonLongitudeDeg, java.time.Instant birthAt) {
     DashaCalculator calc = DashaRegistry.requireCalculator(system);
     return calc.compute(moonLongitudeDeg, birthAt, VERSION);
+  }
+
+  /**
+   * Evaluate registered yoga detectors against D1 (optional D9 context for future rules). Catalog
+   * stubs without detectors are omitted from the report — they appear as Coming Soon in the API.
+   */
+  public YogaReport computeYogas(D1Chart d1, VargaChart d9OrNull) {
+    Objects.requireNonNull(d1, "d1");
+    int lagnaSign = d1.ascendant().signIndex();
+    YogaContext ctx = new YogaContext(lagnaSign, d1.planets(), d9OrNull);
+    return new YogaReport(
+        VERSION,
+        YogaRegistry.evaluateAll(ctx),
+        "Yoga detectors V1.3 from D1 whole-sign positions; unimplemented catalog entries are Coming"
+            + " Soon (not stored as present). Patterns are descriptive — not predictions.");
+  }
+
+  /** Reconstruct yogas from persisted D1 planet rows + lagna sign. */
+  public YogaReport computeYogasFromPositions(
+      int lagnaSignIndex, List<PlanetPosition> d1Planets, VargaChart d9OrNull) {
+    Objects.requireNonNull(d1Planets, "d1Planets");
+    YogaContext ctx = new YogaContext(lagnaSignIndex, d1Planets, d9OrNull);
+    return new YogaReport(
+        VERSION,
+        YogaRegistry.evaluateAll(ctx),
+        "Yoga detectors V1.3 from stored D1 positions; patterns are descriptive — not predictions.");
+  }
+
+  /** Ashta Koota + Manglik for two D1-derived persons. */
+  public MatchingReport computeMatching(MatchingPerson personA, MatchingPerson personB) {
+    Objects.requireNonNull(personA, "personA");
+    Objects.requireNonNull(personB, "personB");
+    return MatchingRegistry.compute(personA, personB, VERSION);
+  }
+
+  /**
+   * Gochar transit positions for a date, compared to natal D1 planets. Unimplemented systems throw
+   * via {@link TransitRegistry#requireCalculator}.
+   */
+  public TransitChart computeTransit(
+      TransitSystemCode system, TransitRequest request, List<PlanetPosition> natalPlanets) {
+    return TransitRegistry.requireCalculator(system)
+        .compute(request, natalPlanets, ephemeris, VERSION);
   }
 
   private static String notesFor(VargaCode code) {

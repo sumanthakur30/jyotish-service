@@ -32,6 +32,9 @@ import com.shopmanagement.jyotishservice.api.KundaliApi.KundaliResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.PlanetDto;
 import com.shopmanagement.jyotishservice.api.KundaliApi.PlanetListResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.VargaChartResponse;
+import com.shopmanagement.jyotishservice.api.KundaliApi.YogaCatalogItem;
+import com.shopmanagement.jyotishservice.api.KundaliApi.YogaDto;
+import com.shopmanagement.jyotishservice.api.KundaliApi.YogaListResponse;
 import com.shopmanagement.jyotishservice.engine.CalculationEngine;
 import com.shopmanagement.jyotishservice.engine.dasha.DashaLevel;
 import com.shopmanagement.jyotishservice.engine.dasha.DashaPeriod;
@@ -48,6 +51,11 @@ import com.shopmanagement.jyotishservice.engine.model.PlanetPosition;
 import com.shopmanagement.jyotishservice.engine.model.VargaChart;
 import com.shopmanagement.jyotishservice.engine.varga.VargaCode;
 import com.shopmanagement.jyotishservice.engine.varga.VargaRegistry;
+import com.shopmanagement.jyotishservice.engine.yoga.YogaCategory;
+import com.shopmanagement.jyotishservice.engine.yoga.YogaCode;
+import com.shopmanagement.jyotishservice.engine.yoga.YogaHit;
+import com.shopmanagement.jyotishservice.engine.yoga.YogaRegistry;
+import com.shopmanagement.jyotishservice.engine.yoga.YogaReport;
 import com.shopmanagement.jyotishservice.filter.TenantContextFilter;
 import com.shopmanagement.jyotishservice.persistence.entity.BirthDetailsEntity;
 import com.shopmanagement.jyotishservice.persistence.entity.BirthLocationEntity;
@@ -59,6 +67,7 @@ import com.shopmanagement.jyotishservice.persistence.entity.DivisionalPlanetPosi
 import com.shopmanagement.jyotishservice.persistence.entity.HousePositionEntity;
 import com.shopmanagement.jyotishservice.persistence.entity.KundaliSnapshotEntity;
 import com.shopmanagement.jyotishservice.persistence.entity.PlanetaryPositionEntity;
+import com.shopmanagement.jyotishservice.persistence.entity.YogaResultEntity;
 import com.shopmanagement.jyotishservice.persistence.repo.BirthDetailsRepository;
 import com.shopmanagement.jyotishservice.persistence.repo.BirthLocationRepository;
 import com.shopmanagement.jyotishservice.persistence.repo.BirthProfileRepository;
@@ -70,6 +79,7 @@ import com.shopmanagement.jyotishservice.persistence.repo.HousePositionRepositor
 import com.shopmanagement.jyotishservice.persistence.repo.JyotishWorkspaceRepository;
 import com.shopmanagement.jyotishservice.persistence.repo.KundaliSnapshotRepository;
 import com.shopmanagement.jyotishservice.persistence.repo.PlanetaryPositionRepository;
+import com.shopmanagement.jyotishservice.persistence.repo.YogaResultRepository;
 
 @Service
 public class KundaliService {
@@ -78,9 +88,11 @@ public class KundaliService {
       List.of(
           new ComingSoonFeature("COMBUST", "Combust detection with classical orbs"),
           new ComingSoonFeature("SHADBALA", "Shadbala strength scores"),
-          new ComingSoonFeature("YOGA", "Yoga detection"),
+          new ComingSoonFeature("YOGA_EXT", "Additional yogas beyond Phase 5 detectors"),
           new ComingSoonFeature("VARGA_EXT", "Additional Vargas beyond D2/D3/D9/D10"),
-          new ComingSoonFeature("DASHA_EXT", "Yogini / Chara / Ashtottari dasha systems"));
+          new ComingSoonFeature("DASHA_EXT", "Yogini / Chara / Ashtottari dasha systems"),
+          new ComingSoonFeature("MANGLIK_CANCEL", "Manglik cancellation rules (Phase 6+)"),
+          new ComingSoonFeature("SADE_SATI", "Sade Sati / Saturn transit analysis (Phase 7+)"));
 
   private final CalculationEngine calculationEngine;
   private final KundaliSnapshotRepository kundaliRepository;
@@ -90,6 +102,7 @@ public class KundaliService {
   private final DivisionalPlanetPositionRepository divisionalPlanetRepository;
   private final DivisionalHousePositionRepository divisionalHouseRepository;
   private final DashaPeriodRepository dashaPeriodRepository;
+  private final YogaResultRepository yogaResultRepository;
   private final BirthProfileRepository profileRepository;
   private final BirthDetailsRepository detailsRepository;
   private final BirthLocationRepository locationRepository;
@@ -104,6 +117,7 @@ public class KundaliService {
       DivisionalPlanetPositionRepository divisionalPlanetRepository,
       DivisionalHousePositionRepository divisionalHouseRepository,
       DashaPeriodRepository dashaPeriodRepository,
+      YogaResultRepository yogaResultRepository,
       BirthProfileRepository profileRepository,
       BirthDetailsRepository detailsRepository,
       BirthLocationRepository locationRepository,
@@ -116,6 +130,7 @@ public class KundaliService {
     this.divisionalPlanetRepository = divisionalPlanetRepository;
     this.divisionalHouseRepository = divisionalHouseRepository;
     this.dashaPeriodRepository = dashaPeriodRepository;
+    this.yogaResultRepository = yogaResultRepository;
     this.profileRepository = profileRepository;
     this.detailsRepository = detailsRepository;
     this.locationRepository = locationRepository;
@@ -222,6 +237,10 @@ public class KundaliService {
     DashaTimeline vimshottari =
         calculationEngine.computeDasha(DashaSystemCode.VIMSHOTTARI, moonLon, birthAt);
     persistDasha(tenantId, snap.getId(), vimshottari);
+
+    // Eager yoga evaluation (Phase 5).
+    YogaReport yogas = calculationEngine.computeYogas(chart, d9);
+    persistYogas(tenantId, snap.getId(), yogas);
 
     return toResponse(snap, toPlanetDto(chart.ascendant()), planetDtos, houseDtos);
   }
@@ -348,6 +367,233 @@ public class KundaliService {
       timelineMeta = metaFromStored(snap, system, rows, tree);
     }
     return toDashaResponse(kundaliId, timelineMeta, tree, asOf);
+  }
+
+  /**
+   * Yoga evaluation for a kundali. Loads persisted detector results if present; otherwise computes
+   * from D1 positions and stores (lazy for older snapshots). Optional {@code category} filters
+   * results; catalog always lists Coming Soon entries.
+   */
+  @Transactional
+  public YogaListResponse getYogas(Long kundaliId, String categoryRaw) {
+    String tenantId = requireTenant();
+    KundaliSnapshotEntity snap = requireSnapshot(kundaliId, tenantId);
+    YogaCategory categoryFilter = null;
+    if (categoryRaw != null && !categoryRaw.isBlank()) {
+      categoryFilter = YogaCategory.parse(categoryRaw);
+    }
+
+    List<YogaResultEntity> rows =
+        yogaResultRepository.findByKundaliIdAndTenantIdOrderByYogaCodeAsc(kundaliId, tenantId);
+    YogaReport report;
+    if (rows.isEmpty()) {
+      report = computeAndPersistYogas(kundaliId, tenantId, snap);
+      rows = yogaResultRepository.findByKundaliIdAndTenantIdOrderByYogaCodeAsc(kundaliId, tenantId);
+    } else {
+      report =
+          new YogaReport(
+              rows.get(0).getCalculationEngineVersion(),
+              List.of(),
+              "Yoga results from store; patterns are descriptive — not predictions.");
+    }
+
+    List<YogaDto> yogas = new ArrayList<>();
+    for (YogaResultEntity row : rows) {
+      if (categoryFilter != null && !categoryFilter.code().equals(row.getCategoryCode())) {
+        continue;
+      }
+      yogas.add(toYogaDto(row));
+    }
+
+    List<YogaCatalogItem> catalog = buildYogaCatalog();
+    return new YogaListResponse(
+        kundaliId,
+        report.engineVersion(),
+        categoryFilter == null ? null : categoryFilter.code(),
+        yogas,
+        catalog,
+        report.notes(),
+        "Yoga presence flags geometric / dignity rules only. Not medical, legal, or life advice;"
+            + " no guaranteed outcomes.");
+  }
+
+  private YogaReport computeAndPersistYogas(
+      Long kundaliId, String tenantId, KundaliSnapshotEntity snap) {
+    List<PlanetaryPositionEntity> rows =
+        planetaryRepository.findByKundaliIdAndTenantIdOrderByPlanetCodeAsc(kundaliId, tenantId);
+    List<PlanetPosition> planets = new ArrayList<>();
+    for (PlanetaryPositionEntity r : rows) {
+      if ("ASCENDANT".equals(r.getPlanetCode())) {
+        continue;
+      }
+      Planet planet;
+      try {
+        planet = Planet.valueOf(r.getPlanetCode());
+      } catch (Exception ex) {
+        continue;
+      }
+      planets.add(
+          new PlanetPosition(
+              planet,
+              r.getLongitudeDeg().doubleValue(),
+              r.getSignIndex(),
+              r.getSignName(),
+              r.getDegreeInSign().doubleValue(),
+              r.getHouse(),
+              r.getNakshatraIndex(),
+              r.getNakshatraName(),
+              r.getPada(),
+              r.isRetrograde(),
+              r.isCombust(),
+              r.getSpeedDegPerDay() == null ? null : r.getSpeedDegPerDay().doubleValue()));
+    }
+    VargaChart d9 = null;
+    // Phase 5 detectors are D1-primary; optional D9 reinforcement can plug into YogaContext later.
+    YogaReport report =
+        calculationEngine.computeYogasFromPositions(snap.getAscendantSignIndex(), planets, d9);
+    persistYogas(tenantId, kundaliId, report);
+    return report;
+  }
+
+  private void persistYogas(String tenantId, Long kundaliId, YogaReport report) {
+    yogaResultRepository.deleteByKundaliIdAndTenantId(kundaliId, tenantId);
+    List<YogaResultEntity> batch = new ArrayList<>();
+    for (YogaHit hit : report.hits()) {
+      YogaResultEntity e = new YogaResultEntity();
+      e.setTenantId(tenantId);
+      e.setKundaliId(kundaliId);
+      e.setYogaCode(hit.code().code());
+      e.setCategoryCode(hit.code().category().code());
+      e.setDisplayName(hit.code().displayName());
+      e.setPresent(hit.present());
+      e.setStrengthCode(hit.strength() == null ? null : hit.strength().code());
+      e.setPlanetCodesJson(toJsonStringArray(hit.planetCodes()));
+      e.setHousesJson(toJsonIntArray(hit.houses()));
+      e.setExplanation(hit.explanation());
+      e.setRuleId(hit.ruleId());
+      e.setCalculationEngineVersion(report.engineVersion());
+      e.setMetaJson("{\"ruleId\":\"" + hit.ruleId() + "\"}");
+      batch.add(e);
+    }
+    yogaResultRepository.saveAll(batch);
+  }
+
+  private static List<YogaCatalogItem> buildYogaCatalog() {
+    List<YogaCatalogItem> catalog = new ArrayList<>();
+    for (YogaCode code : YogaRegistry.all()) {
+      boolean implemented = YogaRegistry.isImplemented(code);
+      catalog.add(
+          new YogaCatalogItem(
+              code.code(),
+              code.displayName(),
+              code.category().code(),
+              code.category().displayName(),
+              implemented,
+              implemented ? "READY" : "COMING_SOON"));
+    }
+    return catalog;
+  }
+
+  private static YogaDto toYogaDto(YogaResultEntity row) {
+    String strengthLabel = null;
+    if (row.getStrengthCode() != null && !row.getStrengthCode().isBlank()) {
+      strengthLabel = row.getStrengthCode();
+    }
+    return new YogaDto(
+        row.getYogaCode(),
+        row.getDisplayName(),
+        row.getCategoryCode(),
+        categoryDisplay(row.getCategoryCode()),
+        row.isPresent(),
+        row.getStrengthCode(),
+        strengthLabel,
+        parseStringArray(row.getPlanetCodesJson()),
+        parseIntArray(row.getHousesJson()),
+        row.getExplanation(),
+        row.getRuleId());
+  }
+
+  private static String categoryDisplay(String code) {
+    try {
+      return YogaCategory.parse(code).displayName();
+    } catch (Exception ex) {
+      return code;
+    }
+  }
+
+  private static String toJsonStringArray(List<String> items) {
+    StringBuilder sb = new StringBuilder("[");
+    for (int i = 0; i < items.size(); i++) {
+      if (i > 0) {
+        sb.append(',');
+      }
+      sb.append('"').append(items.get(i).replace("\"", "")).append('"');
+    }
+    sb.append(']');
+    return sb.toString();
+  }
+
+  private static String toJsonIntArray(List<Integer> items) {
+    StringBuilder sb = new StringBuilder("[");
+    for (int i = 0; i < items.size(); i++) {
+      if (i > 0) {
+        sb.append(',');
+      }
+      sb.append(items.get(i));
+    }
+    sb.append(']');
+    return sb.toString();
+  }
+
+  private static List<String> parseStringArray(String json) {
+    if (json == null || json.isBlank() || "[]".equals(json.trim())) {
+      return List.of();
+    }
+    String inner = json.trim();
+    if (inner.startsWith("[")) {
+      inner = inner.substring(1);
+    }
+    if (inner.endsWith("]")) {
+      inner = inner.substring(0, inner.length() - 1);
+    }
+    if (inner.isBlank()) {
+      return List.of();
+    }
+    List<String> out = new ArrayList<>();
+    for (String part : inner.split(",")) {
+      String p = part.trim();
+      if (p.startsWith("\"") && p.endsWith("\"") && p.length() >= 2) {
+        p = p.substring(1, p.length() - 1);
+      }
+      if (!p.isBlank()) {
+        out.add(p);
+      }
+    }
+    return out;
+  }
+
+  private static List<Integer> parseIntArray(String json) {
+    if (json == null || json.isBlank() || "[]".equals(json.trim())) {
+      return List.of();
+    }
+    String inner = json.trim();
+    if (inner.startsWith("[")) {
+      inner = inner.substring(1);
+    }
+    if (inner.endsWith("]")) {
+      inner = inner.substring(0, inner.length() - 1);
+    }
+    if (inner.isBlank()) {
+      return List.of();
+    }
+    List<Integer> out = new ArrayList<>();
+    for (String part : inner.split(",")) {
+      String p = part.trim();
+      if (!p.isBlank()) {
+        out.add(Integer.parseInt(p));
+      }
+    }
+    return out;
   }
 
   private DashaTimeline computeAndPersistDasha(
