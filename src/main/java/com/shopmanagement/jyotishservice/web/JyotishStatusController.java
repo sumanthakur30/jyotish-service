@@ -24,7 +24,7 @@ public class JyotishStatusController {
   public StatusResponse status() {
     return new StatusResponse(
         "jyotish-service",
-        "8-reports",
+        "10-ai",
         engineProperties.getVersion(),
         entitlementProperties.isEnabled(),
         entitlementProperties.getFlag());
