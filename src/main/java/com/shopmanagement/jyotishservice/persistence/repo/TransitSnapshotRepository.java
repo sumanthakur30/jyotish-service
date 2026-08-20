@@ -13,4 +13,7 @@ public interface TransitSnapshotRepository extends JpaRepository<TransitSnapshot
       Long kundaliId, String tenantId, LocalDate transitDate);
 
   Optional<TransitSnapshotEntity> findByIdAndTenantId(Long id, String tenantId);
+
+  Optional<TransitSnapshotEntity> findFirstByKundaliIdAndTenantIdOrderByTransitDateDescCreatedAtDesc(
+      Long kundaliId, String tenantId);
 }
