@@ -9,10 +9,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.shopmanagement.jyotishservice.api.KundaliApi.ChartListResponse;
+import com.shopmanagement.jyotishservice.api.KundaliApi.DashaResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.GenerateRequest;
 import com.shopmanagement.jyotishservice.api.KundaliApi.HouseListResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.KundaliResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.PlanetListResponse;
+import com.shopmanagement.jyotishservice.api.KundaliApi.VargaChartResponse;
 import com.shopmanagement.jyotishservice.service.KundaliService;
 
 import jakarta.validation.Valid;
@@ -46,5 +49,25 @@ public class KundaliController {
   @GetMapping("/{id}/houses")
   public HouseListResponse houses(@PathVariable Long id) {
     return kundaliService.houses(id);
+  }
+
+  @GetMapping("/{id}/charts")
+  public ChartListResponse charts(@PathVariable Long id) {
+    return kundaliService.listCharts(id);
+  }
+
+  @GetMapping("/{id}/charts/{varga}")
+  public VargaChartResponse chart(@PathVariable Long id, @PathVariable String varga) {
+    return kundaliService.getChart(id, varga);
+  }
+
+  @GetMapping("/{id}/dasha")
+  public DashaResponse dashaDefault(@PathVariable Long id) {
+    return kundaliService.getDasha(id, "VIMSHOTTARI");
+  }
+
+  @GetMapping("/{id}/dasha/{system}")
+  public DashaResponse dasha(@PathVariable Long id, @PathVariable String system) {
+    return kundaliService.getDasha(id, system);
   }
 }

@@ -21,8 +21,8 @@ class CalculationEngineTest {
   private final CalculationEngine engine = new CalculationEngine();
 
   @Test
-  void versionIsV1() {
-    assertEquals("V1.0", engine.version());
+  void versionIsV1_1() {
+    assertEquals("V1.2", engine.version());
   }
 
   @Test
@@ -37,7 +37,7 @@ class CalculationEngineTest {
             "Delhi, India");
     D1Chart chart = engine.computeD1(new ChartRequest(birth, AyanamsaMode.LAHIRI, false));
 
-    assertEquals("V1.0", chart.engineVersion());
+    assertEquals("V1.2", chart.engineVersion());
     assertEquals(9, chart.planets().size());
     assertEquals(12, chart.houses().size());
     assertEquals(Planet.ASCENDANT, chart.ascendant().planet());
@@ -46,5 +46,25 @@ class CalculationEngineTest {
     assertFalse(chart.planets().isEmpty());
     assertTrue(
         chart.planets().stream().anyMatch(p -> p.planet() == Planet.MOON && p.nakshatraName() != null));
+  }
+
+  @Test
+  void computeD9FromD1HasWholeSignHousesAndMappedLagna() {
+    BirthMoment birth =
+        new BirthMoment(
+            LocalDate.of(1990, 8, 15),
+            LocalTime.of(10, 30),
+            ZoneId.of("Asia/Kolkata"),
+            28.6139,
+            77.2090,
+            "Delhi, India");
+    D1Chart d1 = engine.computeD1(new ChartRequest(birth, AyanamsaMode.LAHIRI, false));
+    var d9 = engine.computeVarga(d1, com.shopmanagement.jyotishservice.engine.varga.VargaCode.D9);
+
+    assertEquals("D9", d9.varga().code());
+    assertEquals(9, d9.planets().size());
+    assertEquals(12, d9.houses().size());
+    assertEquals(1, d9.ascendant().house());
+    assertEquals("V1.2", d9.engineVersion());
   }
 }

@@ -24,7 +24,7 @@ public class JyotishStatusController {
   public StatusResponse status() {
     return new StatusResponse(
         "jyotish-service",
-        "2-kundali-d1",
+        "4-dasha",
         engineProperties.getVersion(),
         entitlementProperties.isEnabled(),
         entitlementProperties.getFlag());

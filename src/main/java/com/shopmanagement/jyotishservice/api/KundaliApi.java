@@ -84,4 +84,66 @@ public final class KundaliApi {
   public record PlanetListResponse(Long kundaliId, List<PlanetDto> planets) {}
 
   public record HouseListResponse(Long kundaliId, List<HouseDto> houses) {}
+
+  /** Catalog entry for GET .../charts — implemented vs Coming Soon. */
+  public record ChartCatalogItem(
+      String vargaCode,
+      String displayName,
+      int divisions,
+      boolean implemented,
+      boolean computed,
+      String status) {}
+
+  public record ChartListResponse(Long kundaliId, List<ChartCatalogItem> charts) {}
+
+  public record VargaChartResponse(
+      Long kundaliId,
+      Long chartId,
+      String vargaCode,
+      String displayName,
+      String calculationEngineVersion,
+      String houseSystem,
+      PlanetDto ascendant,
+      List<PlanetDto> planets,
+      List<HouseDto> houses,
+      String notes,
+      boolean comingSoon,
+      Instant createdAt) {}
+
+  /** Catalog entry for GET .../dasha — implemented vs Coming Soon. */
+  public record DashaCatalogItem(
+      String systemCode, String displayName, boolean implemented, String status) {}
+
+  public record DashaPeriodDto(
+      String level,
+      String lordCode,
+      String lordName,
+      String mahaLordCode,
+      String antarLordCode,
+      String pratyantarLordCode,
+      Instant startAt,
+      Instant endAt,
+      Long remainingDays,
+      boolean current,
+      List<DashaPeriodDto> children) {}
+
+  public record DashaCurrentDto(
+      DashaPeriodDto maha, DashaPeriodDto antar, DashaPeriodDto pratyantar) {}
+
+  public record DashaResponse(
+      Long kundaliId,
+      String systemCode,
+      String displayName,
+      String calculationEngineVersion,
+      int moonNakshatraIndex,
+      String moonNakshatraName,
+      String birthMahadashaLord,
+      BigDecimal balanceAtBirthYears,
+      BigDecimal elapsedAtBirthYears,
+      DashaCurrentDto current,
+      List<DashaPeriodDto> timeline,
+      List<DashaCatalogItem> catalog,
+      String notes,
+      String interpretationPlaceholder,
+      Instant asOf) {}
 }
