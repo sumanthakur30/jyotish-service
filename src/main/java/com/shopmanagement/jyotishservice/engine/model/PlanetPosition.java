@@ -13,7 +13,7 @@ public final class PlanetPosition {
   private final String nakshatraName;
   private final int pada;
   private final boolean retrograde;
-  /** Combust is stubbed false in V1.0 — see Coming Soon notes. */
+  /** Combust is stubbed false in V1.1 — see Coming Soon notes. */
   private final boolean combust;
   private final Double speedDegPerDay;
 

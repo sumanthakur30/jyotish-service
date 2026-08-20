@@ -5,8 +5,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "jyotish.engine")
 public class JyotishEngineProperties {
 
-  /** Stamped on kundali snapshots when calculations run (Phase 2+). */
-  private String version = "V1.0";
+  /** Stamped on kundali snapshots when calculations run (Phase 7+ = V1.5). */
+  private String version = "V1.5";
 
   public String getVersion() {
     return version;

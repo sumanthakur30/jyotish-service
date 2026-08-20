@@ -2,7 +2,7 @@ package com.shopmanagement.jyotishservice.engine.model;
 
 import java.util.List;
 
-/** Sidereal Rashi (D1) chart result from CalculationEngine V1.0. */
+/** Sidereal Rashi (D1) chart result from CalculationEngine V1.1. */
 public final class D1Chart {
 
   private final String engineVersion;

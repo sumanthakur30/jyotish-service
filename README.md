@@ -7,7 +7,7 @@ Sugam Jyotish bounded context — Vedic astrology calculation + Kundali SaaS.
 - Does **not** own shop ERP tables or hospital appointments
 - Calculation engine is a pure Java package (`engine.*`) with **no** Spring/UI imports
 
-## Phase 0–2 scope
+## Phase 0–10 scope
 
 | Endpoint | Purpose |
 |----------|---------|
@@ -15,22 +15,49 @@ Sugam Jyotish bounded context — Vedic astrology calculation + Kundali SaaS.
 | `POST /api/v1/jyotish/workspaces/bootstrap` | Ensure tenant workspace |
 | `GET /api/v1/jyotish/places?q=` | City search (lat/lon/tz) |
 | `POST/GET/PUT/DELETE /api/v1/jyotish/profiles/**` | Birth profile CRUD + duplicate/archive |
-| `POST /api/v1/jyotish/kundali/generate` | Generate D1 from profile id or inline birth |
+| `POST /api/v1/jyotish/kundali/generate` | Generate D1 + persist D9 + Vimshottari + yogas eagerly |
 | `GET /api/v1/jyotish/kundali/{id}` | Snapshot + planets + houses |
 | `GET /api/v1/jyotish/kundali/{id}/planets` | Planets only |
 | `GET /api/v1/jyotish/kundali/{id}/houses` | Houses only |
+| `GET /api/v1/jyotish/kundali/{id}/charts` | List Vargas (READY / LAZY / COMING_SOON) |
+| `GET /api/v1/jyotish/kundali/{id}/charts/{varga}` | D1 / D2 / D3 / D9 / D10 (lazy compute+store) |
+| `GET /api/v1/jyotish/kundali/{id}/dasha` | Default Vimshottari timeline + current |
+| `GET /api/v1/jyotish/kundali/{id}/dasha/{system}` | Named system (`VIMSHOTTARI`; others Coming Soon) |
+| `GET /api/v1/jyotish/kundali/{id}/yogas` | Yoga results (+ optional `?category=`) |
+| `POST /api/v1/jyotish/matching` | Ashta Koota + Manglik for two birth profiles |
+| `GET /api/v1/jyotish/matching/{id}` | Stored matching session |
+| `GET /api/v1/jyotish/kundali/{id}/transit?date=` | Gochar for date (default: now / today) |
+| `POST /api/v1/jyotish/transit` | Gochar with `{ kundaliId, date?, time? }` |
+| `POST /api/v1/jyotish/reports` | Generate PDF (`BASIC_KUNDALI` / `MATCHING` / optional `DASHA_SUMMARY` / `TRANSIT`) |
+| `GET /api/v1/jyotish/reports/{id}` | Report metadata |
+| `GET /api/v1/jyotish/reports/{id}/download` | PDF bytes |
+| `GET /api/v1/jyotish/clients/dashboard` | CRM counts (clients + today’s appointments) |
+| `POST/GET/PUT/DELETE /api/v1/jyotish/clients` | Astrologer client CRUD (+ `?q=` search) |
+| `POST/GET/PUT/DELETE /api/v1/jyotish/appointments` | Appointments (+ filters `clientId`, `fromDate`, `toDate`, `status`) |
+| `POST /api/v1/jyotish/ai/ask` | AI Jyotish Assistant `{ kundaliId, question, topic? }` |
 
 Flyway **V1**: workspace + birth profile tables.  
-Flyway **V2**: `kundali_snapshot`, `planetary_position`, `house_position` (`calculation_engine_version=V1.0`).
+Flyway **V2**: `kundali_snapshot`, `planetary_position`, `house_position`.  
+Flyway **V3**: `divisional_chart`, `divisional_planet_position`, `divisional_house_position`.  
+Flyway **V4**: `dasha_period`.  
+Flyway **V5**: `yoga_result`.  
+Flyway **V6**: `matching_session`, `matching_koota_score`.  
+Flyway **V7**: `transit_snapshot`, `transit_planet_position`.  
+Flyway **V8**: `kundali_report` (metadata; PDF files under `./data/reports`).  
+Flyway **V9**: `jyotish_client`, `jyotish_client_birth_profile`, `jyotish_appointment`.  
+Flyway **V10**: `jyotish_ai_ask` (AI ask audit/meter).
 
-### Engine V1.0
+### Engine V1.5 + Phase 8–10
 
 - Sidereal Vedic D1 (Rashi), default Lahiri ayanamsa
-- Ephemeris: pure Java Meeus-style (`MeeusEphemeris`) — see class Javadoc for Swiss Eph upgrade path
-- Whole-sign houses; combust stubbed false (Coming Soon)
+- **Vargas / Dasha / Yoga / Matching / Transit** frameworks as in Phase 3–7
+- **Reports:** OpenPDF from stored snapshots — no recalculation; engine version stays **V1.5**
+- **CRM:** clients + appointments (tenant-isolated; not hospital appointment-service)
+- **AI:** `LlmProvider` HEURISTIC default (optional HTTP); context from verified snapshot only — never invents ephemeris
+- PDF storage: `jyotish.reports.storage-dir` (default `./data/reports`)
 
 ```bash
-mvn -Dtest=CalculationEngineTest test
+mvn test
 ```
 
 ## Local run
@@ -57,17 +84,63 @@ Headers required (except `/status` and actuator):
 X-Tenant-Id: <org-or-shop-id>
 ```
 
-## Generate kundali (example)
+## AI ask (example)
 
 ```bash
-curl -X POST http://localhost:8097/api/v1/jyotish/kundali/generate \
+curl -X POST http://localhost:8097/api/v1/jyotish/ai/ask \
   -H "Content-Type: application/json" \
   -H "X-Tenant-Id: JYOTISH-DEMO-01" \
-  -d "{\"birthProfileId\":1}"
+  -d "{\"kundaliId\":1,\"question\":\"What does my current dasha suggest for career?\",\"topic\":\"career\"}"
+```
+
+Topics: `general`, `career`, `marriage`, `finance`, `health`, `education`, `family`, `spirituality`.
+
+Default provider: `jyotish.ai.provider=HEURISTIC` (no remote). Optional HTTP: set `JYOTISH_AI_PROVIDER=HTTP` + `JYOTISH_AI_HTTP_URL`. Entitlement stub flag `FEATURE_JYOTISH_AI` (not enforced yet).
+
+## Reports (example)
+
+```bash
+curl -X POST http://localhost:8097/api/v1/jyotish/reports \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01" \
+  -d "{\"type\":\"BASIC_KUNDALI\",\"kundaliId\":1}"
+
+curl -OJ "http://localhost:8097/api/v1/jyotish/reports/1/download" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01"
+
+curl -X POST http://localhost:8097/api/v1/jyotish/reports \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01" \
+  -d "{\"type\":\"MATCHING\",\"matchingId\":1}"
+```
+
+## Transit (example)
+
+```bash
+curl "http://localhost:8097/api/v1/jyotish/kundali/1/transit?date=2026-08-20" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01"
+
+curl -X POST http://localhost:8097/api/v1/jyotish/transit \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01" \
+  -d "{\"kundaliId\":1,\"date\":\"2026-08-20\"}"
+```
+
+## Matching (example)
+
+```bash
+curl -X POST http://localhost:8097/api/v1/jyotish/matching \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01" \
+  -d "{\"profileIdA\":1,\"profileIdB\":2}"
+
+curl "http://localhost:8097/api/v1/jyotish/matching/1" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01"
 ```
 
 ## Entitlements
 
 `jyotish.entitlement.enabled=false` in local profile.
 
-When enabled, calls subscription-service feature flag `FEATURE_JYOTISH` (catalog TBD).
+When enabled, calls subscription-service feature flag `FEATURE_JYOTISH` (catalog TBD).  
+AI remote / SaaS gate stub: `FEATURE_JYOTISH_AI` (`jyotish.ai.entitlement-flag`).
