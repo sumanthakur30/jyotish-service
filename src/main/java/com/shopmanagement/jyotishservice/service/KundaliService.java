@@ -37,11 +37,15 @@ import com.shopmanagement.jyotishservice.api.KundaliApi.ShadbalaComponentDto;
 import com.shopmanagement.jyotishservice.api.KundaliApi.ShadbalaPlanetDto;
 import com.shopmanagement.jyotishservice.api.KundaliApi.ShadbalaResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.VargaChartResponse;
+import com.shopmanagement.jyotishservice.api.KundaliApi.DoshaCatalogItem;
+import com.shopmanagement.jyotishservice.api.KundaliApi.DoshaDto;
+import com.shopmanagement.jyotishservice.api.KundaliApi.DoshaListResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.YogaCatalogItem;
 import com.shopmanagement.jyotishservice.api.KundaliApi.YogaDto;
 import com.shopmanagement.jyotishservice.api.KundaliApi.YogaListResponse;
 import com.shopmanagement.jyotishservice.engine.CalculationEngine;
 import com.shopmanagement.jyotishservice.engine.ashtakavarga.AshtakavargaCalculator;
+import com.shopmanagement.jyotishservice.engine.dosha.DoshaRegistry;
 import com.shopmanagement.jyotishservice.engine.ephemeris.EphemerisProvider;
 import com.shopmanagement.jyotishservice.engine.ephemeris.SwissEphemerisProvider;
 import com.shopmanagement.jyotishservice.engine.dasha.DashaLevel;
@@ -406,7 +410,12 @@ public class KundaliService {
     List<YogaResultEntity> rows =
         yogaResultRepository.findByKundaliIdAndTenantIdOrderByYogaCodeAsc(kundaliId, tenantId);
     YogaReport report;
-    if (rows.isEmpty()) {
+    boolean stale =
+        rows.isEmpty()
+            || rows.size() != YogaRegistry.implemented().size()
+            || rows.stream()
+                .anyMatch(r -> !CalculationEngine.VERSION.equals(r.getCalculationEngineVersion()));
+    if (stale) {
       report = computeAndPersistYogas(kundaliId, tenantId, snap);
       rows = yogaResultRepository.findByKundaliIdAndTenantIdOrderByYogaCodeAsc(kundaliId, tenantId);
     } else {
@@ -435,6 +444,44 @@ public class KundaliService {
         report.notes(),
         "Yoga presence flags geometric / dignity rules only. Not medical, legal, or life advice;"
             + " no guaranteed outcomes.");
+  }
+
+  /** Single-chart dosha screens (Manglik + Kaal Sarp arc). Lazy compute, not persisted yet. */
+  @Transactional(readOnly = true)
+  public DoshaListResponse getDoshas(Long kundaliId) {
+    String tenantId = requireTenant();
+    KundaliSnapshotEntity snap = requireSnapshot(kundaliId, tenantId);
+    D1Chart d1 = rebuildD1(kundaliId, tenantId, snap);
+    List<DoshaDto> doshas = new ArrayList<>();
+    for (DoshaRegistry.DoshaHit hit : DoshaRegistry.evaluate(d1)) {
+      doshas.add(
+          new DoshaDto(
+              hit.doshaCode(),
+              hit.displayNameEn(),
+              hit.displayNameHi(),
+              hit.status(),
+              hit.severityCode(),
+              hit.planets(),
+              hit.houses(),
+              hit.conditions(),
+              hit.explanation(),
+              hit.ruleId(),
+              hit.implemented()));
+    }
+    List<DoshaCatalogItem> catalog =
+        List.of(
+            new DoshaCatalogItem("MANGLIK", "Mangal Dosha", true, "READY"),
+            new DoshaCatalogItem("KAAL_SARP", "Kaal Sarp", true, "READY"),
+            new DoshaCatalogItem("PITRU", "Pitru Dosha", false, "COMING_SOON"),
+            new DoshaCatalogItem("GRAHAN", "Grahan Dosha", false, "COMING_SOON"),
+            new DoshaCatalogItem("GURU_CHANDAL", "Guru Chandal", false, "COMING_SOON"));
+    return new DoshaListResponse(
+        kundaliId,
+        CalculationEngine.VERSION,
+        doshas,
+        catalog,
+        "Dosha screens use documented rule sets on this D1 chart.",
+        "According to the selected Jyotish rules — descriptive only, not fear-based predictions.");
   }
 
   /**

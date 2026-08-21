@@ -135,6 +135,8 @@ public class BirthProfileService {
     details.setBirthDate(sourceDetails.getBirthDate());
     details.setBirthTime(sourceDetails.getBirthTime());
     details.setBirthTimeUnknown(sourceDetails.isBirthTimeUnknown());
+    details.setBirthTimeAccuracy(sourceDetails.getBirthTimeAccuracy());
+    details.setUncertaintyMinutes(sourceDetails.getUncertaintyMinutes());
     details.setDstObserved(sourceDetails.isDstObserved());
     details.setTimeZone(sourceDetails.getTimeZone());
     detailsRepository.save(details);
@@ -205,9 +207,23 @@ public class BirthProfileService {
     }
     boolean timeUnknown =
         request.details().birthTimeUnknown() != null && request.details().birthTimeUnknown();
+    String accuracy =
+        request.details().birthTimeAccuracy() == null
+            ? null
+            : request.details().birthTimeAccuracy().trim().toUpperCase();
+    if ("UNKNOWN".equals(accuracy)) {
+      timeUnknown = true;
+    }
     if (!timeUnknown && request.details().birthTime() == null) {
       throw new IllegalArgumentException(
           "Birth time is required for accurate Lagna and house calculations.");
+    }
+    if ("APPROXIMATE".equals(accuracy)) {
+      Integer um = request.details().uncertaintyMinutes();
+      if (um == null || !(um == 5 || um == 15 || um == 30 || um == 60)) {
+        throw new IllegalArgumentException(
+            "Approximate birth time requires uncertainty of ±5, ±15, ±30, or ±60 minutes.");
+      }
     }
   }
 
@@ -220,9 +236,28 @@ public class BirthProfileService {
 
   private static void applyDetails(BirthDetailsEntity details, BirthDetailsRequest request) {
     details.setBirthDate(request.birthDate());
-    boolean timeUnknown = request.birthTimeUnknown() != null && request.birthTimeUnknown();
+    String accuracyRaw =
+        request.birthTimeAccuracy() == null ? null : request.birthTimeAccuracy().trim().toUpperCase();
+    boolean timeUnknown =
+        (request.birthTimeUnknown() != null && request.birthTimeUnknown())
+            || "UNKNOWN".equals(accuracyRaw);
+    if (accuracyRaw == null || accuracyRaw.isBlank()) {
+      accuracyRaw = timeUnknown ? "UNKNOWN" : "EXACT";
+    }
+    if (!"EXACT".equals(accuracyRaw)
+        && !"APPROXIMATE".equals(accuracyRaw)
+        && !"UNKNOWN".equals(accuracyRaw)) {
+      throw new IllegalArgumentException(
+          "Birth time accuracy must be EXACT, APPROXIMATE, or UNKNOWN.");
+    }
+    details.setBirthTimeAccuracy(accuracyRaw);
     details.setBirthTimeUnknown(timeUnknown);
     details.setBirthTime(timeUnknown ? null : request.birthTime());
+    if ("APPROXIMATE".equals(accuracyRaw) && !timeUnknown) {
+      details.setUncertaintyMinutes(request.uncertaintyMinutes());
+    } else {
+      details.setUncertaintyMinutes(null);
+    }
     details.setDstObserved(request.dstObserved() != null && request.dstObserved());
     details.setTimeZone(request.timeZone().trim());
   }
@@ -249,6 +284,10 @@ public class BirthProfileService {
             details.getBirthDate(),
             details.getBirthTime(),
             details.isBirthTimeUnknown(),
+            details.getBirthTimeAccuracy() != null
+                ? details.getBirthTimeAccuracy()
+                : (details.isBirthTimeUnknown() ? "UNKNOWN" : "EXACT"),
+            details.getUncertaintyMinutes(),
             details.isDstObserved(),
             details.getTimeZone()),
         new BirthLocationResponse(

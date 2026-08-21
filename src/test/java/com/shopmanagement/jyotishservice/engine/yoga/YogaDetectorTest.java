@@ -193,9 +193,10 @@ class YogaDetectorTest {
                 p(Planet.SUN, 4),
                 p(Planet.VENUS, 5),
                 p(Planet.SATURN, 6)));
-    assertEquals(5, hits.size());
+    assertEquals(10, hits.size());
     assertTrue(YogaRegistry.isImplemented(YogaCode.GAJAKESARI));
-    assertFalse(YogaRegistry.isImplemented(YogaCode.KEMADRUMA));
+    assertTrue(YogaRegistry.isImplemented(YogaCode.KEMADRUMA));
+    assertFalse(YogaRegistry.isImplemented(YogaCode.NEECHA_BHANGA));
     assertNotNull(hits.get(0).explanation());
   }
 

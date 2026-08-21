@@ -21,6 +21,9 @@ public final class BirthProfileApi {
       @NotNull LocalDate birthDate,
       LocalTime birthTime,
       Boolean birthTimeUnknown,
+      /** EXACT | APPROXIMATE | UNKNOWN */
+      @Size(max = 16) String birthTimeAccuracy,
+      Integer uncertaintyMinutes,
       Boolean dstObserved,
       @NotBlank @Size(max = 64) String timeZone) {}
 
@@ -44,6 +47,8 @@ public final class BirthProfileApi {
       LocalDate birthDate,
       LocalTime birthTime,
       boolean birthTimeUnknown,
+      String birthTimeAccuracy,
+      Integer uncertaintyMinutes,
       boolean dstObserved,
       String timeZone) {}
 

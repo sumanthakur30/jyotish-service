@@ -36,6 +36,14 @@ public class BirthDetailsEntity {
   @Column(name = "birth_time_unknown", nullable = false)
   private boolean birthTimeUnknown = false;
 
+  /** EXACT | APPROXIMATE | UNKNOWN — null means derive from birthTimeUnknown. */
+  @Column(name = "birth_time_accuracy", length = 16)
+  private String birthTimeAccuracy;
+
+  /** For APPROXIMATE: 5, 15, 30, or 60. */
+  @Column(name = "uncertainty_minutes")
+  private Integer uncertaintyMinutes;
+
   @Column(name = "dst_observed", nullable = false)
   private boolean dstObserved = false;
 
@@ -106,6 +114,22 @@ public class BirthDetailsEntity {
 
   public void setBirthTimeUnknown(boolean birthTimeUnknown) {
     this.birthTimeUnknown = birthTimeUnknown;
+  }
+
+  public String getBirthTimeAccuracy() {
+    return birthTimeAccuracy;
+  }
+
+  public void setBirthTimeAccuracy(String birthTimeAccuracy) {
+    this.birthTimeAccuracy = birthTimeAccuracy;
+  }
+
+  public Integer getUncertaintyMinutes() {
+    return uncertaintyMinutes;
+  }
+
+  public void setUncertaintyMinutes(Integer uncertaintyMinutes) {
+    this.uncertaintyMinutes = uncertaintyMinutes;
   }
 
   public boolean isDstObserved() {

@@ -24,6 +24,11 @@ public final class YogaRegistry {
     m.put(YogaCode.DHANA_2_11, Dhana211YogaDetector.INSTANCE);
     m.put(YogaCode.RUCHAKA, RuchakaYogaDetector.INSTANCE);
     m.put(YogaCode.BHADRA, BhadraYogaDetector.INSTANCE);
+    m.put(YogaCode.HAMSA, HamsaYogaDetector.INSTANCE);
+    m.put(YogaCode.MALAVYA, MalavyaYogaDetector.INSTANCE);
+    m.put(YogaCode.SASA, SasaYogaDetector.INSTANCE);
+    m.put(YogaCode.KEMADRUMA, KemadrumaYogaDetector.INSTANCE);
+    m.put(YogaCode.BUDHADITYA, BudhadityaYogaDetector.INSTANCE);
     DETECTORS = Collections.unmodifiableMap(m);
   }
 

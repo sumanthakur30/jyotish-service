@@ -178,6 +178,30 @@ public final class KundaliApi {
       String notes,
       String disclaimer) {}
 
+  public record DoshaDto(
+      String doshaCode,
+      String displayName,
+      String displayNameHi,
+      String status,
+      String severityCode,
+      List<String> planets,
+      List<Integer> houses,
+      List<String> conditions,
+      String explanation,
+      String ruleId,
+      boolean implemented) {}
+
+  public record DoshaCatalogItem(
+      String doshaCode, String displayName, boolean implemented, String status) {}
+
+  public record DoshaListResponse(
+      Long kundaliId,
+      String calculationEngineVersion,
+      List<DoshaDto> doshas,
+      List<DoshaCatalogItem> catalog,
+      String notes,
+      String disclaimer) {}
+
   /** GET .../ashtakavarga */
   public record AshtakavargaPlanetDto(String planetCode, String planetName, List<Integer> bindus) {}
 

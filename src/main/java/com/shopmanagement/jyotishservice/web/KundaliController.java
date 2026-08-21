@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.shopmanagement.jyotishservice.api.KundaliApi.AshtakavargaResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.ChartListResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.DashaResponse;
+import com.shopmanagement.jyotishservice.api.KundaliApi.DoshaListResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.GenerateRequest;
 import com.shopmanagement.jyotishservice.api.KundaliApi.HouseListResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.KundaliResponse;
@@ -92,6 +93,12 @@ public class KundaliController {
       @PathVariable Long id, @RequestParam(required = false) String category) {
     entitlementGuard.requireJyotishAccess();
     return kundaliService.getYogas(id, category);
+  }
+
+  @GetMapping("/{id}/doshas")
+  public DoshaListResponse doshas(@PathVariable Long id) {
+    entitlementGuard.requireJyotishAccess();
+    return kundaliService.getDoshas(id);
   }
 
   @GetMapping("/{id}/ashtakavarga")
