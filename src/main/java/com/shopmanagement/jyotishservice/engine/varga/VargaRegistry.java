@@ -20,8 +20,19 @@ public final class VargaRegistry {
     m.put(VargaCode.D1, IdentityVargaMapper.INSTANCE);
     m.put(VargaCode.D2, HoraVargaMapper.INSTANCE);
     m.put(VargaCode.D3, DrekkanaVargaMapper.INSTANCE);
+    m.put(VargaCode.D4, ParasharaEqualVargas.D4);
+    m.put(VargaCode.D7, ParasharaEqualVargas.D7);
     m.put(VargaCode.D9, NavamshaVargaMapper.INSTANCE);
     m.put(VargaCode.D10, DasamsaVargaMapper.INSTANCE);
+    m.put(VargaCode.D12, ParasharaEqualVargas.D12);
+    m.put(VargaCode.D16, ParasharaEqualVargas.D16);
+    m.put(VargaCode.D20, ParasharaEqualVargas.D20);
+    m.put(VargaCode.D24, ParasharaEqualVargas.D24);
+    m.put(VargaCode.D27, ParasharaEqualVargas.D27);
+    m.put(VargaCode.D30, TrimsamsaVargaMapper.INSTANCE);
+    m.put(VargaCode.D40, ParasharaEqualVargas.D40);
+    m.put(VargaCode.D45, ParasharaEqualVargas.D45);
+    m.put(VargaCode.D60, ParasharaEqualVargas.D60);
     MAPPERS = Collections.unmodifiableMap(m);
   }
 

@@ -5,35 +5,33 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * Registered divisional chart codes. Implemented codes have a {@link VargaMapper}; others are
- * catalogued as Coming Soon so the UI/API can list them without rewriting per chart.
+ * Registered divisional chart codes (Shodashavarga). All codes are implemented via {@link
+ * VargaRegistry} mappers.
  */
 public enum VargaCode {
-  D1("Rashi", 1, true),
-  D2("Hora", 2, true),
-  D3("Drekkana", 3, true),
-  D4("Chaturthamsha", 4, false),
-  D7("Saptamsha", 7, false),
-  D9("Navamsha", 9, true),
-  D10("Dasamsha", 10, true),
-  D12("Dwadasamsha", 12, false),
-  D16("Shodashamsha", 16, false),
-  D20("Vimshamsha", 20, false),
-  D24("Chaturvimshamsha", 24, false),
-  D27("Nakshatramsha", 27, false),
-  D30("Trimshamsha", 30, false),
-  D40("Khavedamsha", 40, false),
-  D45("Akshavedamsha", 45, false),
-  D60("Shashtyamsha", 60, false);
+  D1("Rashi", 1),
+  D2("Hora", 2),
+  D3("Drekkana", 3),
+  D4("Chaturthamsha", 4),
+  D7("Saptamsha", 7),
+  D9("Navamsha", 9),
+  D10("Dasamsha", 10),
+  D12("Dwadasamsha", 12),
+  D16("Shodashamsha", 16),
+  D20("Vimshamsha", 20),
+  D24("Chaturvimshamsha", 24),
+  D27("Nakshatramsha", 27),
+  D30("Trimshamsha", 30),
+  D40("Khavedamsha", 40),
+  D45("Akshavedamsha", 45),
+  D60("Shashtyamsha", 60);
 
   private final String displayName;
   private final int divisions;
-  private final boolean implemented;
 
-  VargaCode(String displayName, int divisions, boolean implemented) {
+  VargaCode(String displayName, int divisions) {
     this.displayName = displayName;
     this.divisions = divisions;
-    this.implemented = implemented;
   }
 
   public String code() {
@@ -48,8 +46,9 @@ public enum VargaCode {
     return divisions;
   }
 
+  /** Prefer {@link VargaRegistry#isImplemented(VargaCode)}; all Shodasha codes are mapped. */
   public boolean implemented() {
-    return implemented;
+    return true;
   }
 
   public static Optional<VargaCode> tryParse(String raw) {

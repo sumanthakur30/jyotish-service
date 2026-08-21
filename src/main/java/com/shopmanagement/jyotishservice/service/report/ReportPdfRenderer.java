@@ -49,14 +49,36 @@ public class ReportPdfRenderer {
       List<DashaPeriodEntity> mahaPeriods,
       TransitSnapshotEntity transit,
       List<TransitPlanetPositionEntity> transitPlanets) {
+    return renderBasicKundali(snap, planets, mahaPeriods, transit, transitPlanets, List.of());
+  }
+
+  public byte[] renderBasicKundali(
+      KundaliSnapshotEntity snap,
+      List<PlanetaryPositionEntity> planets,
+      List<DashaPeriodEntity> mahaPeriods,
+      TransitSnapshotEntity transit,
+      List<TransitPlanetPositionEntity> transitPlanets,
+      List<VargaChartFrame> vargaFrames) {
     return renderNamed(
-        "Sugam Jyotish — Kundli Pack", snap, planets, mahaPeriods, transit, transitPlanets);
+        "Sugam Jyotish — Kundli Pack",
+        snap,
+        planets,
+        mahaPeriods,
+        transit,
+        transitPlanets,
+        vargaFrames);
   }
 
   public byte[] renderDashaSummary(
       KundaliSnapshotEntity snap, List<DashaPeriodEntity> mahaPeriods) {
     return renderNamed(
-        "Sugam Jyotish — Dasha Summary", snap, List.of(), mahaPeriods, null, List.of());
+        "Sugam Jyotish — Dasha Summary",
+        snap,
+        List.of(),
+        mahaPeriods,
+        null,
+        List.of(),
+        List.of());
   }
 
   public byte[] renderTransit(
@@ -64,7 +86,13 @@ public class ReportPdfRenderer {
       TransitSnapshotEntity transit,
       List<TransitPlanetPositionEntity> transitPlanets) {
     return renderNamed(
-        "Sugam Jyotish — Transit Report", snap, List.of(), List.of(), transit, transitPlanets);
+        "Sugam Jyotish — Transit Report",
+        snap,
+        List.of(),
+        List.of(),
+        transit,
+        transitPlanets,
+        List.of());
   }
 
   public byte[] renderMatching(
@@ -166,7 +194,8 @@ public class ReportPdfRenderer {
       List<PlanetaryPositionEntity> planets,
       List<DashaPeriodEntity> mahaPeriods,
       TransitSnapshotEntity transit,
-      List<TransitPlanetPositionEntity> transitPlanets) {
+      List<TransitPlanetPositionEntity> transitPlanets,
+      List<VargaChartFrame> vargaFrames) {
     try {
       ByteArrayOutputStream out = new ByteArrayOutputStream();
       Document doc = new Document();
@@ -333,6 +362,49 @@ public class ReportPdfRenderer {
         doc.add(
             new Paragraph(
                 "Sign numbers 1–12 = Aries–Pisces. Charts use whole-sign houses (engine default).",
+                small));
+      }
+
+      if (vargaFrames != null && !vargaFrames.isEmpty()) {
+        doc.newPage();
+        doc.add(new Paragraph("Shodashavarga — chart grid", heading));
+        doc.add(new Paragraph(" ", small));
+        float pageW = doc.getPageSize().getWidth();
+        float pageH = doc.getPageSize().getHeight();
+        float margin = 36f;
+        float gap = 18f;
+        float chartSize = Math.min(230f, (pageW - 2 * margin - gap) / 2f);
+        int i = 0;
+        for (VargaChartFrame frame : vargaFrames) {
+          if (i > 0 && i % 4 == 0) {
+            doc.newPage();
+            doc.add(new Paragraph("Shodashavarga — continued", heading));
+            doc.add(new Paragraph(" ", small));
+          }
+          int slot = i % 4;
+          float col = slot % 2;
+          float row = slot / 2;
+          float x = margin + col * (chartSize + gap);
+          float y = pageH - margin - 40 - (row + 1) * (chartSize + 28);
+          if (i >= 4 && slot < 4) {
+            // y already relative to top of continued page
+          }
+          NorthIndianPdfDrawer.draw(
+              doc,
+              writer,
+              chartFont,
+              x,
+              y,
+              chartSize,
+              frame.title(),
+              frame.lagnaSignIndex(),
+              frame.houseOfPlanet());
+          i++;
+        }
+        doc.add(new Paragraph(" ", normal));
+        doc.add(
+            new Paragraph(
+                "Vargas projected from D1 longitudes (Parashara). Full set available in Charts tab.",
                 small));
       }
 

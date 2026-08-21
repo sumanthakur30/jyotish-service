@@ -108,7 +108,6 @@ public class KundaliService {
           new ComingSoonFeature("COMBUST", "Combust detection with classical orbs"),
           new ComingSoonFeature("SHADBALA", "Full Shadbala (partial Naisargika/Dig/Sthana READY)"),
           new ComingSoonFeature("YOGA_EXT", "Additional yogas beyond Phase 5 detectors"),
-          new ComingSoonFeature("VARGA_EXT", "Additional Vargas beyond D2/D3/D9/D10"),
           new ComingSoonFeature("DASHA_EXT", "Yogini / Chara / Ashtottari dasha systems"));
 
   private final CalculationEngine calculationEngine;
