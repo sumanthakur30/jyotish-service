@@ -1,5 +1,8 @@
 package com.shopmanagement.jyotishservice.persistence.entity;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 
@@ -42,6 +45,7 @@ public class DivisionalChartEntity {
 
   @Column private String notes;
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "meta_json", nullable = false, columnDefinition = "jsonb")
   private String metaJson = "{}";
 
@@ -146,3 +150,4 @@ public class DivisionalChartEntity {
     this.createdAt = createdAt;
   }
 }
+

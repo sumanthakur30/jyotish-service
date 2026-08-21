@@ -47,14 +47,16 @@ Flyway **V8**: `kundali_report` (metadata; PDF files under `./data/reports`).
 Flyway **V9**: `jyotish_client`, `jyotish_client_birth_profile`, `jyotish_appointment`.  
 Flyway **V10**: `jyotish_ai_ask` (AI ask audit/meter).
 
-### Engine V1.5 + Phase 8–10
+### Engine V1.5 + Phase 8–10 (+ Swiss ephemeris SPI)
 
 - Sidereal Vedic D1 (Rashi), default Lahiri ayanamsa
+- **Ephemeris:** `jyotish.ephemeris.provider=MEEUS` (default) or `SWISS` (optional Thomas Mack pure-Java JAR — see `third_party/swiss-ephemeris/README.md`)
 - **Vargas / Dasha / Yoga / Matching / Transit** frameworks as in Phase 3–7
 - **Reports:** OpenPDF from stored snapshots — no recalculation; engine version stays **V1.5**
 - **CRM:** clients + appointments (tenant-isolated; not hospital appointment-service)
 - **AI:** `LlmProvider` HEURISTIC default (optional HTTP); context from verified snapshot only — never invents ephemeris
 - PDF storage: `jyotish.reports.storage-dir` (default `./data/reports`)
+- Status: `GET /api/v1/jyotish/status` includes `ephemerisProvider`
 
 ```bash
 mvn test
@@ -96,6 +98,21 @@ curl -X POST http://localhost:8097/api/v1/jyotish/ai/ask \
 Topics: `general`, `career`, `marriage`, `finance`, `health`, `education`, `family`, `spirituality`.
 
 Default provider: `jyotish.ai.provider=HEURISTIC` (no remote). Optional HTTP: set `JYOTISH_AI_PROVIDER=HTTP` + `JYOTISH_AI_HTTP_URL`. Entitlement stub flag `FEATURE_JYOTISH_AI` (not enforced yet).
+
+## Swiss Ephemeris (optional accuracy)
+
+Default stays **MEEUS**. To enable Swiss (Thomas Mack pure-Java JAR):
+
+1. Download JAR — see `third_party/swiss-ephemeris/README.md`
+2. Set:
+
+```properties
+jyotish.ephemeris.provider=SWISS
+jyotish.ephemeris.swiss-jar-path=third_party/swiss-ephemeris/swisseph-2.01.00-02.jar
+```
+
+Or env: `JYOTISH_EPHEMERIS_PROVIDER=SWISS` + `JYOTISH_SWISS_JAR_PATH=...`.  
+Status endpoint reports active provider. AGPL license applies to the Swiss JAR — review before production.
 
 ## Reports (example)
 

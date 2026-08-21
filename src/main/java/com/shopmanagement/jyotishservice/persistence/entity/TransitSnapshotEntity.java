@@ -1,5 +1,8 @@
 package com.shopmanagement.jyotishservice.persistence.entity;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -57,6 +60,7 @@ public class TransitSnapshotEntity {
   @Column(name = "notes", columnDefinition = "text")
   private String notes;
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "meta_json", nullable = false, columnDefinition = "jsonb")
   private String metaJson = "{}";
 
@@ -196,3 +200,4 @@ public class TransitSnapshotEntity {
     this.createdAt = createdAt;
   }
 }
+

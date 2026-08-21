@@ -4,8 +4,11 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -13,6 +16,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class RestExceptionHandler {
+
+  private static final Logger log = LoggerFactory.getLogger(RestExceptionHandler.class);
 
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
@@ -29,6 +34,14 @@ public class RestExceptionHandler {
     return body(HttpStatus.BAD_REQUEST, message);
   }
 
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<Map<String, Object>> handleUnreadable(HttpMessageNotReadableException ex) {
+    log.warn("Unreadable request body: {}", rootMessage(ex));
+    return body(
+        HttpStatus.BAD_REQUEST,
+        "Invalid request body. Check date (yyyy-MM-dd), time (HH:mm), and JSON field types.");
+  }
+
   @ExceptionHandler(ResponseStatusException.class)
   public ResponseEntity<Map<String, Object>> handleStatus(ResponseStatusException ex) {
     HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
@@ -38,7 +51,17 @@ public class RestExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
+    log.error("Unhandled error on Jyotish API request", ex);
     return body(HttpStatus.INTERNAL_SERVER_ERROR, "We couldn't complete that request. Please try again.");
+  }
+
+  private static String rootMessage(Throwable ex) {
+    Throwable cur = ex;
+    while (cur.getCause() != null && cur.getCause() != cur) {
+      cur = cur.getCause();
+    }
+    String msg = cur.getMessage();
+    return msg != null ? msg : ex.getClass().getSimpleName();
   }
 
   private static ResponseEntity<Map<String, Object>> body(HttpStatus status, String message) {

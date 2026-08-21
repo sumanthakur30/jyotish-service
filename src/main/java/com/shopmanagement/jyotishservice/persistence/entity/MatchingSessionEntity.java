@@ -1,5 +1,8 @@
 package com.shopmanagement.jyotishservice.persistence.entity;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 
@@ -73,6 +76,7 @@ public class MatchingSessionEntity {
   @Column(name = "calculation_engine_version", nullable = false, length = 16)
   private String calculationEngineVersion;
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "result_json", nullable = false, columnDefinition = "jsonb")
   private String resultJson = "{}";
 
@@ -257,3 +261,4 @@ public class MatchingSessionEntity {
     this.createdAt = createdAt;
   }
 }
+

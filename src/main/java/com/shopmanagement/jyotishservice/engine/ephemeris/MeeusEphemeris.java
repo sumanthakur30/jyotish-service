@@ -7,16 +7,19 @@ import com.shopmanagement.jyotishservice.engine.model.Planet;
  * Pure-Java tropical ephemeris using Jean Meeus <em>Astronomical Algorithms</em> (2nd ed.) style
  * low-precision series for Sun/Moon/planets, plus mean lunar node for Rahu/Ketu.
  *
- * <p><b>Why not Swiss Ephemeris JNI?</b> SE Java ports exist but ship awkward packaging (manual JAR /
- * JitPack) and AGPL licensing friction for SaaS. V1.0 prefers a documented pure approach that runs
- * identically on Windows and Docker without native libs. Upgrade path: swap this class for a Swiss
- * Ephemeris-backed {@link EphemerisProvider} behind the same interface when licensed files are
- * available.
+ * <p>Default provider ({@code jyotish.ephemeris.provider=MEEUS}) — no native libs, identical on
+ * Windows and Docker. For higher accuracy enable {@link SwissEphemerisProvider} via {@code
+ * jyotish.ephemeris.provider=SWISS} (optional Thomas Mack JAR; see architecture accuracy roadmap).
  *
  * <p>Expected accuracy vs Swiss Ephemeris (regression tolerances documented in tests): Sun ≈ ±0.5°,
  * Moon ≈ ±1.0°, Ascendant ≈ ±1.0°, other grahas ≈ ±1.5°.
  */
 public final class MeeusEphemeris implements EphemerisProvider {
+
+  @Override
+  public String code() {
+    return EphemerisProviders.MEEUS;
+  }
 
   @Override
   public TropicalBody position(Planet planet, double julianDayUt) {

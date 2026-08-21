@@ -3,9 +3,9 @@ package com.shopmanagement.jyotishservice.engine.ephemeris;
 /**
  * Tropical geocentric ecliptic longitude (+ optional daily speed) for a body.
  *
- * <p>Ephemeris choice (Phase 2 V1.0): pure Java Jean Meeus / VSOP-style truncated series — see
- * {@link MeeusEphemeris}. No JNI Swiss Ephemeris packaging in this slice (Windows/Docker-friendly;
- * avoids AGPL native SE dependency). Positions are real astronomy, not demo constants.
+ * <p>Produced by {@link EphemerisProvider} — default {@link MeeusEphemeris}, optional {@link
+ * SwissEphemerisProvider} when {@code jyotish.ephemeris.provider=SWISS}. Positions are real
+ * astronomy, not demo constants.
  */
 public final class TropicalBody {
 

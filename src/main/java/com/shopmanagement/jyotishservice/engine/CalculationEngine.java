@@ -37,11 +37,12 @@ import com.shopmanagement.jyotishservice.engine.yoga.YogaRegistry;
 import com.shopmanagement.jyotishservice.engine.yoga.YogaReport;
 
 /**
- * Pure calculation engine (no Spring). V1.5 sidereal D1 via {@link MeeusEphemeris} + configurable
- * ayanamsa, Parashara Vargas (D2/D3/D9/D10) via {@link VargaRegistry}, Vimshottari dasha via
- * {@link DashaRegistry}, rule-based yogas via {@link YogaRegistry}, Kundali matching via
- * {@link MatchingRegistry}, and Gochar transit via {@link TransitRegistry}. Whole-sign houses.
- * Combust is stubbed false (Coming Soon).
+ * Pure calculation engine (no Spring). V1.5 sidereal D1 via pluggable {@link EphemerisProvider}
+ * (default {@link MeeusEphemeris}; optional Swiss) + configurable ayanamsa, Parashara Vargas
+ * (D2/D3/D9/D10) via {@link VargaRegistry}, Vimshottari dasha via {@link DashaRegistry},
+ * rule-based yogas via {@link YogaRegistry}, Kundali matching via {@link MatchingRegistry}, and
+ * Gochar transit via {@link TransitRegistry}. Whole-sign houses. Combust is stubbed false (Coming
+ * Soon).
  */
 public final class CalculationEngine {
 
@@ -101,7 +102,9 @@ public final class CalculationEngine {
     String notes =
         request.birthTimeUnknown()
             ? "Birth time unknown — Lagna and houses use noon local time; treat as approximate."
-            : "D1 whole-sign; combust Coming Soon; Meeus tropical + "
+            : "D1 whole-sign; combust Coming Soon; "
+                + ephemeris.code()
+                + " tropical + "
                 + mode.name()
                 + " ayanamsa.";
 

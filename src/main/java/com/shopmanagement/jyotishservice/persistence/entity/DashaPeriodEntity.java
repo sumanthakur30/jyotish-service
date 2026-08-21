@@ -1,5 +1,8 @@
 package com.shopmanagement.jyotishservice.persistence.entity;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.Instant;
 
 import jakarta.persistence.Column;
@@ -54,6 +57,7 @@ public class DashaPeriodEntity {
   @Column(name = "calculation_engine_version", nullable = false, length = 16)
   private String calculationEngineVersion;
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "meta_json", nullable = false, columnDefinition = "jsonb")
   private String metaJson = "{}";
 
@@ -190,3 +194,4 @@ public class DashaPeriodEntity {
     this.createdAt = createdAt;
   }
 }
+

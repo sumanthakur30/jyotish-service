@@ -1,5 +1,8 @@
 package com.shopmanagement.jyotishservice.persistence.entity;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.Instant;
 
 import jakarta.persistence.Column;
@@ -39,9 +42,11 @@ public class YogaResultEntity {
   @Column(name = "strength_code", length = 32)
   private String strengthCode;
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "planet_codes_json", nullable = false, columnDefinition = "jsonb")
   private String planetCodesJson = "[]";
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "houses_json", nullable = false, columnDefinition = "jsonb")
   private String housesJson = "[]";
 
@@ -54,6 +59,7 @@ public class YogaResultEntity {
   @Column(name = "calculation_engine_version", nullable = false, length = 16)
   private String calculationEngineVersion;
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "meta_json", nullable = false, columnDefinition = "jsonb")
   private String metaJson = "{}";
 
@@ -196,3 +202,4 @@ public class YogaResultEntity {
     this.createdAt = createdAt;
   }
 }
+

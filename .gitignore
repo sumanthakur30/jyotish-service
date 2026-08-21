@@ -8,3 +8,8 @@
 /data/
 *.log
 .DS_Store
+
+# Optional Swiss Ephemeris binaries (download locally — see third_party/swiss-ephemeris/README.md)
+/third_party/swiss-ephemeris/*.jar
+/third_party/swiss-ephemeris/ephe/
+/third_party/swiss-ephemeris/probe/
