@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.shopmanagement.jyotishservice.api.AiApi.AskRequest;
 import com.shopmanagement.jyotishservice.api.AiApi.AskResponse;
+import com.shopmanagement.jyotishservice.entitlement.JyotishEntitlementGuard;
 import com.shopmanagement.jyotishservice.service.AiAskService;
 
 import jakarta.validation.Valid;
@@ -16,13 +17,16 @@ import jakarta.validation.Valid;
 public class AiController {
 
   private final AiAskService aiAskService;
+  private final JyotishEntitlementGuard entitlementGuard;
 
-  public AiController(AiAskService aiAskService) {
+  public AiController(AiAskService aiAskService, JyotishEntitlementGuard entitlementGuard) {
     this.aiAskService = aiAskService;
+    this.entitlementGuard = entitlementGuard;
   }
 
   @PostMapping("/ask")
   public AskResponse ask(@Valid @RequestBody AskRequest request) {
+    entitlementGuard.requireAiAccess();
     return aiAskService.ask(request);
   }
 }

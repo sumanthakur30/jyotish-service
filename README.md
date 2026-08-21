@@ -203,6 +203,8 @@ When enabled, jyotish-service calls:
 | `FEATURE_JYOTISH_REPORTS` | Reports / PDF |
 | `FEATURE_JYOTISH_AI` | `POST /api/v1/jyotish/ai/ask` |
 
+Deny → **403** `JYOTISH_ENTITLEMENT_DENIED`.
+
 Catalog / plan seeds: [`docs/PLATFORM-JYOTISH-SUBSCRIPTION-SEED.md`](docs/PLATFORM-JYOTISH-SUBSCRIPTION-SEED.md)  
 Assign `jyotish-starter` / `jyotish-professional` / `jyotish-enterprise` in Super Admin → Platform Subscription.
 

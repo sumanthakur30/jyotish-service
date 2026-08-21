@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.shopmanagement.jyotishservice.api.TransitApi.TransitRequestBody;
 import com.shopmanagement.jyotishservice.api.TransitApi.TransitResponse;
+import com.shopmanagement.jyotishservice.entitlement.JyotishEntitlementGuard;
 import com.shopmanagement.jyotishservice.service.TransitService;
 
 import jakarta.validation.Valid;
@@ -24,9 +25,12 @@ import jakarta.validation.Valid;
 public class TransitController {
 
   private final TransitService transitService;
+  private final JyotishEntitlementGuard entitlementGuard;
 
-  public TransitController(TransitService transitService) {
+  public TransitController(
+      TransitService transitService, JyotishEntitlementGuard entitlementGuard) {
     this.transitService = transitService;
+    this.entitlementGuard = entitlementGuard;
   }
 
   @GetMapping("/kundali/{id}/transit")
@@ -34,12 +38,14 @@ public class TransitController {
       @PathVariable Long id,
       @RequestParam(required = false) LocalDate date,
       @RequestParam(required = false) LocalTime time) {
+    entitlementGuard.requireJyotishAccess();
     return transitService.getForKundali(id, date, time);
   }
 
   @PostMapping("/transit")
   @ResponseStatus(HttpStatus.CREATED)
   public TransitResponse postTransit(@Valid @RequestBody TransitRequestBody body) {
+    entitlementGuard.requireJyotishAccess();
     return transitService.compute(body);
   }
 }
