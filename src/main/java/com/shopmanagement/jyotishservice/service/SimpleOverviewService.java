@@ -34,6 +34,9 @@ import com.shopmanagement.jyotishservice.engine.explain.DashaLordThemes.Theme;
 import com.shopmanagement.jyotishservice.engine.explain.SimpleExplanationComposer;
 import com.shopmanagement.jyotishservice.engine.explain.SimpleExplanationComposer.LordPlacement;
 import com.shopmanagement.jyotishservice.engine.explain.SimpleLabels;
+import com.shopmanagement.jyotishservice.engine.explain.SimpleLifeAreaComposer;
+import com.shopmanagement.jyotishservice.engine.explain.SimpleLifeAreaComposer.PeriodChapterExtras;
+import com.shopmanagement.jyotishservice.engine.life.LifeCategory;
 import com.shopmanagement.jyotishservice.filter.TenantContextFilter;
 import com.shopmanagement.jyotishservice.persistence.entity.DashaPeriodEntity;
 import com.shopmanagement.jyotishservice.persistence.repo.DashaPeriodRepository;
@@ -116,9 +119,20 @@ public class SimpleOverviewService {
             "वर्तमान जीवन अवधि इस कुंडली में चंद्र नक्षत्र से बनी घड़ी है।");
 
     CurrentLifePeriodCard periodCard = buildCurrentPeriod(current, kundali);
-    List<UpcomingItem> upcoming = buildUpcoming(strip != null ? strip.upcomingDasha() : List.of());
+    List<UpcomingItem> upcoming =
+        buildUpcoming(strip != null ? strip.upcomingDasha() : List.of(), kundali);
+    LordPlacement mahaPlace =
+        periodCard != null ? placementOf(kundali, periodCard.mahaLordCode()) : null;
+    LordPlacement antarPlace =
+        periodCard != null ? placementOf(kundali, periodCard.antarLordCode()) : null;
     List<LifeAreaCard> areas =
-        buildLifeAreas(life.categories(), upcoming.isEmpty() ? null : upcoming.get(0));
+        buildLifeAreas(
+            life.categories(),
+            kundali,
+            mahaPlace,
+            antarPlace,
+            periodCard != null ? periodCard.mahaLordCode() : null,
+            periodCard != null ? periodCard.antarLordCode() : null);
     List<PresentYogaFact> presentYogas = buildYogas(yogas);
     List<LordTheme> themes = buildLordThemes();
 
@@ -311,28 +325,34 @@ public class SimpleOverviewService {
   }
 
   private static List<LifeAreaCard> buildLifeAreas(
-      List<CategorySummary> categories, UpcomingItem next) {
+      List<CategorySummary> categories,
+      KundaliResponse kundali,
+      LordPlacement mahaPlace,
+      LordPlacement antarPlace,
+      String mahaLordCode,
+      String antarLordCode) {
     if (categories == null || categories.isEmpty()) {
       return List.of();
     }
-    Instant nextAt = next != null ? next.startAt() : null;
-    String nextEn = next != null ? "Next: " + next.labelEn() : null;
-    String nextHi = next != null ? "अगला: " + next.labelHi() : null;
     List<LifeAreaCard> out = new ArrayList<>();
     for (CategorySummary c : categories) {
-      out.add(
-          new LifeAreaCard(
-              c.category(),
-              c.labelEn(),
-              c.labelHi(),
+      LifeCategory cat = LifeCategory.tryParse(c.category()).orElse(null);
+      if (cat == null || cat == LifeCategory.GENERAL) {
+        continue;
+      }
+      LifeAreaCard card =
+          SimpleLifeAreaComposer.compose(
+              cat,
               c.status(),
-              SimpleLabels.statusLineEn(c.status()),
-              SimpleLabels.statusLineHi(c.status()),
-              c.currentDashaLine(),
-              c.currentDashaEndAt(),
-              nextAt,
-              nextEn,
-              nextHi));
+              kundali != null ? kundali.houses() : List.of(),
+              kundali != null ? kundali.planets() : List.of(),
+              mahaPlace,
+              antarPlace,
+              mahaLordCode,
+              antarLordCode);
+      if (card != null) {
+        out.add(card);
+      }
     }
     return List.copyOf(out);
   }
@@ -373,7 +393,8 @@ public class SimpleOverviewService {
     return new LordPlacement(p.signName(), p.house(), p.nakshatraName());
   }
 
-  private static List<UpcomingItem> buildUpcoming(List<CalculatedDashaPeriod> upcoming) {
+  private static List<UpcomingItem> buildUpcoming(
+      List<CalculatedDashaPeriod> upcoming, KundaliResponse kundali) {
     if (upcoming == null || upcoming.isEmpty()) {
       return List.of();
     }
@@ -399,6 +420,8 @@ public class SimpleOverviewService {
                 + (lord != null ? lord.nameHi() : u.lordName())
                 + " अध्याय";
       }
+      LordPlacement place = placementOf(kundali, u.lordCode());
+      PeriodChapterExtras extras = SimpleLifeAreaComposer.chapterExtras(u.lordCode(), place);
       out.add(
           new UpcomingItem(
               u.levelCode(),
@@ -409,7 +432,13 @@ public class SimpleOverviewService {
               u.mahaLordCode(),
               u.mahaLordName(),
               u.startAt(),
-              u.endAt()));
+              u.endAt(),
+              extras.lordSignName(),
+              extras.lordHouse(),
+              extras.placementLineEn(),
+              extras.placementLineHi(),
+              extras.glossEn(),
+              extras.glossHi()));
     }
     return List.copyOf(out);
   }

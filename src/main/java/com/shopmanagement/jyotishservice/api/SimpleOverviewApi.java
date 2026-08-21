@@ -58,21 +58,39 @@ public final class SimpleOverviewApi {
       String antarLordName,
       ExplainedBlock explanation) {}
 
+  /**
+   * One life-area tile. Period dates live on the shared current-period banner — do not duplicate
+   * identical dasha strips on every card. Topic text is templated from D1 houses/planets only.
+   * Legacy dasha/next fields stay null for API stability (prefer section banner / upcoming list).
+   */
   public record LifeAreaCard(
       String category,
       String labelEn,
       String labelHi,
       String status,
-      /** Short factual status line (notes state) — not a prediction. */
+      /** Short factual status line (Jyotish notes state) — not a prediction. */
       String statusLineEn,
       String statusLineHi,
       String currentDashaLine,
       Instant currentDashaEndAt,
-      /** First upcoming stored dasha change (shared strip) — null if none. */
       Instant nextPeriodAt,
       String nextPeriodLineEn,
-      String nextPeriodLineHi) {}
+      String nextPeriodLineHi,
+      /** e.g. "10th Capricorn · lord Saturn · Sun, Mercury" */
+      String focusSummaryEn,
+      String focusSummaryHi,
+      /** 1–2 qualified sentences from chart facts (not Phaladesh). */
+      List<String> summaryParagraphsEn,
+      List<String> summaryParagraphsHi,
+      /** Expandable Why? facts (houses, lords, key graha, optional dasha-lord house). */
+      List<FactBullet> factBullets,
+      List<String> relevantPlanetLinesEn,
+      List<String> relevantPlanetLinesHi,
+      List<Integer> focusHouses) {}
 
+  /**
+   * Upcoming chapter row — print-style: dates · lord · natal house/sign when D1 placement exists.
+   */
   public record UpcomingItem(
       String levelCode,
       String labelEn,
@@ -82,7 +100,17 @@ public final class SimpleOverviewApi {
       String mahaLordCode,
       String mahaLordName,
       Instant startAt,
-      Instant endAt) {}
+      Instant endAt,
+      /** Natal sign of the period lord from stored D1; null if unknown. */
+      String lordSignName,
+      /** Natal house of the period lord from stored D1; 0 if unknown. */
+      int lordHouse,
+      /** e.g. "Rahu in Aquarius · house 11" */
+      String placementLineEn,
+      String placementLineHi,
+      /** Short qualified gloss from placement + theme; never absolute Phaladesh. */
+      String glossEn,
+      String glossHi) {}
 
   public record PresentYogaFact(
       String yogaCode, String displayName, String strengthCode, List<String> planets) {}
