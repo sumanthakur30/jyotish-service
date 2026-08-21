@@ -1,7 +1,11 @@
 package com.shopmanagement.jyotishservice.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -17,10 +21,15 @@ import org.springframework.web.server.ResponseStatusException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.AnalysisDetailResponse;
+import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.CalculatedDashaPeriod;
+import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.CalculatedTimelineStrip;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.CategorySummary;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.ConsultationItem;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.ConsultationListResponse;
+import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.CurrentDashaStrip;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.DashboardResponse;
+import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.GocharAsOf;
+import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.GocharPlanetFact;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.HistoryItem;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.HistoryListResponse;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.PeriodDto;
@@ -30,6 +39,7 @@ import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.SearchResponse;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.UpsertAnalysisRequest;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.UpsertPeriodRequest;
 import com.shopmanagement.jyotishservice.engine.life.LifeCategory;
+import com.shopmanagement.jyotishservice.engine.model.Planet;
 import com.shopmanagement.jyotishservice.filter.TenantContextFilter;
 import com.shopmanagement.jyotishservice.persistence.entity.DashaPeriodEntity;
 import com.shopmanagement.jyotishservice.persistence.entity.LifeAnalysisConsultationEntity;
@@ -58,6 +68,10 @@ public class LifeAnalysisService {
       "This section provides traditional Jyotish observations and is not medical advice or a medical diagnosis.";
   public static final String HEALTH_DISCLAIMER_HI =
       "यह अनुभाग पारंपरिक ज्योतिषीय अवलोकन प्रदान करता है। यह चिकित्सकीय सलाह या चिकित्सा निदान नहीं है।";
+
+  private static final String VIMSHOTTARI = "VIMSHOTTARI";
+  private static final int UPCOMING_DASHA_LIMIT = 6;
+  private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
 
   private final KundaliSnapshotRepository kundaliRepository;
   private final LifeAnalysisRepository analysisRepository;
@@ -106,6 +120,15 @@ public class LifeAnalysisService {
   public DashboardResponse dashboard(Long kundaliId) {
     String tenantId = requireTenant();
     requireKundali(kundaliId, tenantId);
+    CalculatedTimelineStrip strip = buildCalculatedTimeline(kundaliId, tenantId, null);
+    String dashaLine =
+        strip.currentDasha() != null ? strip.currentDasha().summaryLine() : null;
+    Instant dashaEnd =
+        strip.currentDasha() != null && strip.currentDasha().antar() != null
+            ? strip.currentDasha().antar().endAt()
+            : (strip.currentDasha() != null && strip.currentDasha().maha() != null
+                ? strip.currentDasha().maha().endAt()
+                : null);
     Map<String, LifeAnalysisEntity> existing = new LinkedHashMap<>();
     for (LifeAnalysisEntity row :
         analysisRepository.findByKundaliIdAndTenantIdOrderByCategoryAsc(kundaliId, tenantId)) {
@@ -126,9 +149,11 @@ public class LifeAnalysisService {
               cat.labelHi(),
               row != null ? row.getStatus() : "NOT_STARTED",
               row != null ? row.getUpdatedAt() : null,
-              row == null || row.isIncludeInReport()));
+              row == null || row.isIncludeInReport(),
+              dashaLine,
+              dashaEnd));
     }
-    return new DashboardResponse(kundaliId, cards);
+    return new DashboardResponse(kundaliId, cards, strip);
   }
 
   @Transactional(readOnly = true)
@@ -253,6 +278,60 @@ public class LifeAnalysisService {
     return toPeriod(periodRepository.save(e));
   }
 
+  /**
+   * Creates a Jyotish timeline row from the <em>stored</em> current Vimshottari maha/antar dates.
+   * Observation is left empty — no auto-generated predictions.
+   */
+  @Transactional
+  public PeriodDto addCurrentDashaToTimeline(Long kundaliId, String categoryRaw, String updatedBy) {
+    String tenantId = requireTenant();
+    requireKundali(kundaliId, tenantId);
+    LifeCategory category = LifeCategory.parse(categoryRaw);
+    CalculatedTimelineStrip strip = buildCalculatedTimeline(kundaliId, tenantId, null);
+    if (strip.currentDasha() == null
+        || (strip.currentDasha().maha() == null && strip.currentDasha().antar() == null)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "No current Vimshottari Dasha period found for this kundali");
+    }
+    CalculatedDashaPeriod source =
+        strip.currentDasha().antar() != null
+            ? strip.currentDasha().antar()
+            : strip.currentDasha().maha();
+    String mahaName =
+        strip.currentDasha().maha() != null
+            ? planetName(strip.currentDasha().maha().lordCode())
+            : null;
+    String antarName =
+        strip.currentDasha().antar() != null
+            ? planetName(strip.currentDasha().antar().lordCode())
+            : null;
+    String lordLabel =
+        mahaName != null && antarName != null
+            ? mahaName + " / " + antarName
+            : (antarName != null ? antarName : mahaName);
+    String basis =
+        VIMSHOTTARI
+            + " "
+            + source.levelCode()
+            + " · "
+            + lordLabel
+            + " · from stored dasha_period";
+    LifeAnalysisPeriodEntity e = new LifeAnalysisPeriodEntity();
+    e.setTenantId(tenantId);
+    e.setKundaliId(kundaliId);
+    e.setCategory(category.code());
+    e.setFromDate(toLocalDate(source.startAt()));
+    e.setToDate(toLocalDate(source.endAt()));
+    e.setTopic(category.labelEn() + " · " + lordLabel);
+    e.setObservation(null);
+    e.setCalculationBasis(basis);
+    e.setStatus("ACTIVE");
+    e.setSortOrder(0);
+    e.setUpdatedBy(updatedBy);
+    e.setCreatedBy(updatedBy);
+    return toPeriod(periodRepository.save(e));
+  }
+
   @Transactional
   public PeriodDto updatePeriod(Long kundaliId, Long periodId, UpsertPeriodRequest req) {
     String tenantId = requireTenant();
@@ -370,8 +449,10 @@ public class LifeAnalysisService {
     var planets =
         planetaryRepository.findByKundaliIdAndTenantIdOrderByPlanetCodeAsc(kundaliId, tenantId);
     var yogas = yogaRepository.findByKundaliIdAndTenantIdOrderByYogaCodeAsc(kundaliId, tenantId);
-    String dasha = currentDashaSummary(kundaliId, tenantId);
-    String gochar = currentGocharSummary(kundaliId, tenantId);
+    CalculatedTimelineStrip strip = buildCalculatedTimeline(kundaliId, tenantId, category.code());
+    String dasha =
+        strip.currentDasha() != null ? strip.currentDasha().summaryLine() : null;
+    String gochar = strip.gocharAsOf() != null ? strip.gocharAsOf().summaryLine() : null;
     var indicators =
         indicatorBuilder.build(category, houses, planets, yogas, dasha, gochar);
 
@@ -394,36 +475,102 @@ public class LifeAnalysisService {
         category == LifeCategory.HEALTH ? HEALTH_DISCLAIMER_HI : null,
         row != null ? row.getCreatedAt() : null,
         row != null ? row.getUpdatedAt() : null,
-        row != null ? row.getUpdatedBy() : null);
+        row != null ? row.getUpdatedBy() : null,
+        strip);
   }
 
-  private String currentDashaSummary(Long kundaliId, String tenantId) {
-    Instant now = Instant.now();
+  /**
+   * Builds date-wise calculated strip from stored Vimshottari / Gochar only. Does not invent dates
+   * or prediction text. {@code categoryCode} when non-null includes that topic's manual periods.
+   */
+  private CalculatedTimelineStrip buildCalculatedTimeline(
+      Long kundaliId, String tenantId, String categoryCode) {
+    Instant asOf = Instant.now();
     List<DashaPeriodEntity> rows =
         dashaRepository.findByKundaliIdAndTenantIdAndSystemCodeOrderByStartAtAscSequenceNoAsc(
-            kundaliId, tenantId, "VIMSHOTTARI");
-    String maha = null;
-    String antar = null;
+            kundaliId, tenantId, VIMSHOTTARI);
+
+    DashaPeriodEntity curMaha = null;
+    DashaPeriodEntity curAntar = null;
     for (DashaPeriodEntity r : rows) {
-      if (r.getStartAt() == null || r.getEndAt() == null) {
-        continue;
-      }
-      if (now.isBefore(r.getStartAt()) || !now.isBefore(r.getEndAt())) {
+      if (!containsNow(r, asOf)) {
         continue;
       }
       if ("MAHA".equalsIgnoreCase(r.getLevelCode())) {
-        maha = r.getLordCode();
+        curMaha = r;
       } else if ("ANTAR".equalsIgnoreCase(r.getLevelCode())) {
-        antar = r.getLordCode();
+        curAntar = r;
       }
     }
-    if (maha == null) {
-      return null;
+
+    CurrentDashaStrip current = null;
+    if (curMaha != null || curAntar != null) {
+      CalculatedDashaPeriod mahaDto = curMaha != null ? toCalculated(curMaha) : null;
+      CalculatedDashaPeriod antarDto = curAntar != null ? toCalculated(curAntar) : null;
+      current =
+          new CurrentDashaStrip(VIMSHOTTARI, mahaDto, antarDto, buildDashaSummaryLine(mahaDto, antarDto));
     }
-    return antar != null ? maha + " / " + antar : maha;
+
+    List<CalculatedDashaPeriod> upcoming = buildUpcoming(rows, asOf, UPCOMING_DASHA_LIMIT);
+    GocharAsOf gochar = buildGocharAsOf(kundaliId, tenantId);
+
+    List<PeriodDto> topicPeriods = List.of();
+    if (categoryCode != null && !categoryCode.isBlank()) {
+      topicPeriods =
+          periodRepository
+              .findByKundaliIdAndTenantIdAndCategoryOrderBySortOrderAscFromDateAsc(
+                  kundaliId, tenantId, categoryCode)
+              .stream()
+              .map(this::toPeriod)
+              .toList();
+    }
+
+    return new CalculatedTimelineStrip(asOf, current, upcoming, gochar, topicPeriods);
   }
 
-  private String currentGocharSummary(Long kundaliId, String tenantId) {
+  private static List<CalculatedDashaPeriod> buildUpcoming(
+      List<DashaPeriodEntity> rows, Instant asOf, int limit) {
+    List<DashaPeriodEntity> candidates = new ArrayList<>();
+    for (DashaPeriodEntity r : rows) {
+      if (r.getStartAt() == null) {
+        continue;
+      }
+      String level = r.getLevelCode() == null ? "" : r.getLevelCode().toUpperCase(Locale.ROOT);
+      if (!"MAHA".equals(level) && !"ANTAR".equals(level)) {
+        continue;
+      }
+      if (r.getStartAt().isAfter(asOf)) {
+        candidates.add(r);
+      }
+    }
+    candidates.sort(
+        Comparator.comparing(DashaPeriodEntity::getStartAt)
+            .thenComparing(DashaPeriodEntity::getSequenceNo));
+
+    // Prefer next ANTARs (finer grain), then fill with upcoming MAHA if needed
+    List<CalculatedDashaPeriod> out = new ArrayList<>();
+    for (DashaPeriodEntity r : candidates) {
+      if ("ANTAR".equalsIgnoreCase(r.getLevelCode())) {
+        out.add(toCalculated(r));
+        if (out.size() >= limit) {
+          return out;
+        }
+      }
+    }
+    if (out.size() < limit) {
+      for (DashaPeriodEntity r : candidates) {
+        if ("MAHA".equalsIgnoreCase(r.getLevelCode())) {
+          out.add(toCalculated(r));
+          if (out.size() >= limit) {
+            break;
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  private GocharAsOf buildGocharAsOf(Long kundaliId, String tenantId) {
     Optional<TransitSnapshotEntity> snap =
         transitSnapshotRepository.findFirstByKundaliIdAndTenantIdOrderByTransitDateDescCreatedAtDesc(
             kundaliId, tenantId);
@@ -433,11 +580,83 @@ public class LifeAnalysisService {
     List<TransitPlanetPositionEntity> planets =
         transitPlanetRepository.findByTransitIdAndTenantIdOrderByPlanetCodeAsc(
             snap.get().getId(), tenantId);
-    return planets.stream()
-        .limit(6)
-        .map(p -> p.getPlanetCode() + " " + p.getSignName() + " H" + p.getHouse())
-        .reduce((a, b) -> a + "; " + b)
-        .orElse(null);
+    List<GocharPlanetFact> facts =
+        planets.stream()
+            .limit(9)
+            .map(
+                p ->
+                    new GocharPlanetFact(
+                        p.getPlanetCode(),
+                        planetName(p.getPlanetCode()),
+                        p.getSignName(),
+                        (int) p.getHouse()))
+            .toList();
+    String summary =
+        facts.stream()
+            .limit(6)
+            .map(f -> f.planetCode() + " " + f.signName() + " H" + f.house())
+            .reduce((a, b) -> a + "; " + b)
+            .orElse(null);
+    return new GocharAsOf(snap.get().getTransitDate(), facts, summary);
+  }
+
+  private static CalculatedDashaPeriod toCalculated(DashaPeriodEntity r) {
+    return new CalculatedDashaPeriod(
+        r.getLevelCode(),
+        r.getLordCode(),
+        planetName(r.getLordCode()),
+        r.getMahaLordCode(),
+        planetName(r.getMahaLordCode()),
+        r.getAntarLordCode(),
+        r.getAntarLordCode() != null ? planetName(r.getAntarLordCode()) : null,
+        r.getStartAt(),
+        r.getEndAt(),
+        VIMSHOTTARI);
+  }
+
+  private static String buildDashaSummaryLine(
+      CalculatedDashaPeriod maha, CalculatedDashaPeriod antar) {
+    if (maha == null && antar == null) {
+      return null;
+    }
+    String lords;
+    Instant endAt;
+    if (maha != null && antar != null) {
+      lords = maha.lordName() + " / " + antar.lordName();
+      endAt = antar.endAt();
+    } else if (antar != null) {
+      lords = antar.lordName();
+      endAt = antar.endAt();
+    } else {
+      lords = maha.lordName();
+      endAt = maha.endAt();
+    }
+    if (endAt == null) {
+      return lords;
+    }
+    return lords + " · until " + ISO_DATE.format(toLocalDate(endAt));
+  }
+
+  private static boolean containsNow(DashaPeriodEntity r, Instant asOf) {
+    if (r.getStartAt() == null || r.getEndAt() == null) {
+      return false;
+    }
+    return !asOf.isBefore(r.getStartAt()) && asOf.isBefore(r.getEndAt());
+  }
+
+  private static LocalDate toLocalDate(Instant instant) {
+    return instant.atZone(ZoneOffset.UTC).toLocalDate();
+  }
+
+  private static String planetName(String code) {
+    if (code == null || code.isBlank()) {
+      return code;
+    }
+    try {
+      return Planet.valueOf(code.trim().toUpperCase(Locale.ROOT)).displayName();
+    } catch (Exception ex) {
+      return code;
+    }
   }
 
   private void applyPeriod(LifeAnalysisPeriodEntity e, UpsertPeriodRequest req) {

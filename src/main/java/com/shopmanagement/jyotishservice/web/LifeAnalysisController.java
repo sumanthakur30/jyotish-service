@@ -63,6 +63,16 @@ public class LifeAnalysisController {
     return lifeAnalysisService.createPeriod(kundaliId, body);
   }
 
+  /** Seed a topic timeline row from stored current Vimshottari dates (observation left empty). */
+  @PostMapping("/{category}/periods/from-current-dasha")
+  @ResponseStatus(HttpStatus.CREATED)
+  public PeriodDto addCurrentDashaPeriod(
+      @PathVariable Long kundaliId,
+      @PathVariable String category,
+      @RequestParam(required = false) String updatedBy) {
+    return lifeAnalysisService.addCurrentDashaToTimeline(kundaliId, category, updatedBy);
+  }
+
   @PutMapping("/periods/{periodId}")
   public PeriodDto updatePeriod(
       @PathVariable Long kundaliId,

@@ -13,7 +13,11 @@ public final class LifeAnalysisApi {
 
   private LifeAnalysisApi() {}
 
-  public record DashboardResponse(Long kundaliId, List<CategorySummary> categories) {}
+  public record DashboardResponse(
+      Long kundaliId,
+      List<CategorySummary> categories,
+      /** Shared calculated strip (same Dasha/Gochar for every card). Null lords if no stored rows. */
+      CalculatedTimelineStrip calculatedTimeline) {}
 
   public record CategorySummary(
       String category,
@@ -21,7 +25,13 @@ public final class LifeAnalysisApi {
       String labelHi,
       String status,
       Instant updatedAt,
-      boolean includeInReport) {}
+      boolean includeInReport,
+      /**
+       * Short date line for the card, e.g. {@code Jupiter / Saturn · until 2027-03-12}. From stored
+       * Vimshottari only — never invented.
+       */
+      String currentDashaLine,
+      Instant currentDashaEndAt) {}
 
   public record AnalysisDetailResponse(
       Long id,
@@ -42,9 +52,51 @@ public final class LifeAnalysisApi {
       String healthDisclaimerHi,
       Instant createdAt,
       Instant updatedAt,
-      String updatedBy) {}
+      String updatedBy,
+      /** Calculated Dasha/Gochar + optional topic periods — separate from Jyotish notes. */
+      CalculatedTimelineStrip calculatedTimeline) {}
 
   public record IndicatorItem(String code, String label, String value, String source) {}
+
+  /** One stored Vimshottari (or similar) period row exposed as facts only. */
+  public record CalculatedDashaPeriod(
+      String levelCode,
+      String lordCode,
+      String lordName,
+      String mahaLordCode,
+      String mahaLordName,
+      String antarLordCode,
+      String antarLordName,
+      Instant startAt,
+      Instant endAt,
+      String basis) {}
+
+  public record CurrentDashaStrip(
+      String systemCode,
+      CalculatedDashaPeriod maha,
+      CalculatedDashaPeriod antar,
+      /** e.g. Jupiter / Saturn · until 2027-03-12 */
+      String summaryLine) {}
+
+  public record GocharPlanetFact(
+      String planetCode, String planetName, String signName, Integer house) {}
+
+  public record GocharAsOf(
+      LocalDate transitDate,
+      List<GocharPlanetFact> planets,
+      /** Short factual summary, e.g. JU Aries H5; SA Capricorn H2 */
+      String summaryLine) {}
+
+  /**
+   * Date-wise calculated strip. All dates come from persisted Dasha / Gochar (or topic period rows).
+   * Never invents outcomes or prediction text.
+   */
+  public record CalculatedTimelineStrip(
+      Instant asOf,
+      CurrentDashaStrip currentDasha,
+      List<CalculatedDashaPeriod> upcomingDasha,
+      GocharAsOf gocharAsOf,
+      List<PeriodDto> topicPeriods) {}
 
   public record UpsertAnalysisRequest(
       String status,
