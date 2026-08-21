@@ -28,7 +28,6 @@ public class PlaceCatalogService {
           place("Ahmedabad, India", "IN", "23.0225000", "72.5714000", "Asia/Kolkata"),
           place("Jaipur, India", "IN", "26.9124000", "75.7873000", "Asia/Kolkata"),
           place("Lucknow, India", "IN", "26.8467000", "80.9462000", "Asia/Kolkata"),
-          place("Patna, India", "IN", "25.5941000", "85.1376000", "Asia/Kolkata"),
           place("Varanasi, India", "IN", "25.3176000", "82.9739000", "Asia/Kolkata"),
           place("Chandigarh, India", "IN", "30.7333000", "76.7794000", "Asia/Kolkata"),
           place("Kochi, India", "IN", "9.9312000", "76.2673000", "Asia/Kolkata"),
@@ -37,17 +36,65 @@ public class PlaceCatalogService {
           place("Bhopal, India", "IN", "23.2599000", "77.4126000", "Asia/Kolkata"),
           place("Indore, India", "IN", "22.7196000", "75.8577000", "Asia/Kolkata"),
           place("Nagpur, India", "IN", "21.1458000", "79.0882000", "Asia/Kolkata"),
-          place("Surat, India", "IN", "21.1702000", "72.8311000", "Asia/Kolkata"));
+          place("Surat, India", "IN", "21.1702000", "72.8311000", "Asia/Kolkata"),
+          // Bihar — district HQs / major cities (search "Bihar" or city name)
+          place("Patna, Bihar, India", "IN", "25.5941000", "85.1376000", "Asia/Kolkata"),
+          place("Gaya, Bihar, India", "IN", "24.7961000", "85.0070000", "Asia/Kolkata"),
+          place("Muzaffarpur, Bihar, India", "IN", "26.1209000", "85.3647000", "Asia/Kolkata"),
+          place("Bhagalpur, Bihar, India", "IN", "25.2425000", "86.9842000", "Asia/Kolkata"),
+          place("Darbhanga, Bihar, India", "IN", "26.1542000", "85.8918000", "Asia/Kolkata"),
+          place("Purnia, Bihar, India", "IN", "25.7771000", "87.4753000", "Asia/Kolkata"),
+          place("Arrah, Bihar, India", "IN", "25.5560000", "84.6670000", "Asia/Kolkata"),
+          place("Begusarai, Bihar, India", "IN", "25.4182000", "86.1272000", "Asia/Kolkata"),
+          place("Katihar, Bihar, India", "IN", "25.5394000", "87.5713000", "Asia/Kolkata"),
+          place("Munger, Bihar, India", "IN", "25.3748000", "86.4735000", "Asia/Kolkata"),
+          place("Chapra, Bihar, India", "IN", "25.7815000", "84.7499000", "Asia/Kolkata"),
+          place("Sasaram, Bihar, India", "IN", "24.9531000", "84.0167000", "Asia/Kolkata"),
+          place("Motihari, Bihar, India", "IN", "26.6460000", "84.9087000", "Asia/Kolkata"),
+          place("Bettiah, Bihar, India", "IN", "26.8023000", "84.5092000", "Asia/Kolkata"),
+          place("Bihar Sharif, Bihar, India", "IN", "25.1973000", "85.5239000", "Asia/Kolkata"),
+          place("Saharsa, Bihar, India", "IN", "25.8835000", "86.6005000", "Asia/Kolkata"),
+          place("Samastipur, Bihar, India", "IN", "25.8629000", "85.7810000", "Asia/Kolkata"),
+          place("Siwan, Bihar, India", "IN", "26.2190000", "84.3567000", "Asia/Kolkata"),
+          place("Hajipur, Bihar, India", "IN", "25.6854000", "85.2083000", "Asia/Kolkata"),
+          place("Madhubani, Bihar, India", "IN", "26.3537000", "86.0770000", "Asia/Kolkata"),
+          place("Sitamarhi, Bihar, India", "IN", "26.5933000", "85.5039000", "Asia/Kolkata"),
+          place("Aurangabad, Bihar, India", "IN", "24.7521000", "84.3742000", "Asia/Kolkata"),
+          place("Jehanabad, Bihar, India", "IN", "25.2136000", "84.9870000", "Asia/Kolkata"),
+          place("Nawada, Bihar, India", "IN", "24.8867000", "85.5434000", "Asia/Kolkata"),
+          place("Jamui, Bihar, India", "IN", "24.9257000", "86.2247000", "Asia/Kolkata"),
+          place("Danapur, Bihar, India", "IN", "25.6341000", "85.0450000", "Asia/Kolkata"),
+          place("Dehri, Bihar, India", "IN", "24.9025000", "84.1822000", "Asia/Kolkata"),
+          place("Kishanganj, Bihar, India", "IN", "26.1025000", "87.9550000", "Asia/Kolkata"),
+          place("Forbesganj, Bihar, India", "IN", "26.3005000", "87.2655000", "Asia/Kolkata"));
 
   public PlaceSearchResponse search(String q) {
     String needle = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
     List<PlaceSuggestion> items =
         PLACES.stream()
-            .filter(p -> needle.isEmpty() || p.placeName().toLowerCase(Locale.ROOT).contains(needle))
+            .filter(p -> matches(p.placeName(), needle))
             .sorted(Comparator.comparing(PlaceSuggestion::placeName))
-            .limit(20)
+            .limit(30)
             .toList();
     return new PlaceSearchResponse(items);
+  }
+
+  /** Empty query lists catalog; otherwise each whitespace token must appear in the name. */
+  private static boolean matches(String placeName, String needle) {
+    if (needle.isEmpty()) {
+      return true;
+    }
+    String hay = placeName.toLowerCase(Locale.ROOT);
+    if (hay.contains(needle)) {
+      return true;
+    }
+    String[] tokens = needle.split("\\s+");
+    for (String token : tokens) {
+      if (!token.isEmpty() && !hay.contains(token)) {
+        return false;
+      }
+    }
+    return tokens.length > 0;
   }
 
   private static PlaceSuggestion place(
