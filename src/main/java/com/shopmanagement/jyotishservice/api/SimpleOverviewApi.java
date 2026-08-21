@@ -63,8 +63,15 @@ public final class SimpleOverviewApi {
       String labelEn,
       String labelHi,
       String status,
+      /** Short factual status line (notes state) — not a prediction. */
+      String statusLineEn,
+      String statusLineHi,
       String currentDashaLine,
-      Instant currentDashaEndAt) {}
+      Instant currentDashaEndAt,
+      /** First upcoming stored dasha change (shared strip) — null if none. */
+      Instant nextPeriodAt,
+      String nextPeriodLineEn,
+      String nextPeriodLineHi) {}
 
   public record UpcomingItem(
       String levelCode,

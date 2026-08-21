@@ -25,7 +25,15 @@ class SimpleExplanationComposerTest {
     Instant end = Instant.parse("2026-06-01T00:00:00Z");
     ExplainedBlock block =
         SimpleExplanationComposer.explainDashaPeriod(
-            "RAHU", "Rahu", "RAHU", "Rahu", start, end, "VIMSHOTTARI");
+            "RAHU",
+            "Rahu",
+            "RAHU",
+            "Rahu",
+            start,
+            end,
+            "VIMSHOTTARI",
+            new SimpleExplanationComposer.LordPlacement("Aquarius", 11, "Shatabhisha"),
+            new SimpleExplanationComposer.LordPlacement("Aquarius", 11, "Shatabhisha"));
     assertFalse(block.calculationNotAvailable());
     assertTrue(block.paragraphsEn().size() >= 3 && block.paragraphsEn().size() <= 5);
     assertTrue(block.paragraphsHi().size() >= 3);
@@ -34,5 +42,6 @@ class SimpleExplanationComposerTest {
     assertFalse(joined.contains("will definitely"));
     assertTrue(block.whyFacts().stream().anyMatch(f -> "MAHA".equals(f.code())));
     assertTrue(block.whyFacts().stream().anyMatch(f -> "START".equals(f.code())));
+    assertTrue(block.whyFacts().stream().anyMatch(f -> "MAHA_PLACE".equals(f.code())));
   }
 }

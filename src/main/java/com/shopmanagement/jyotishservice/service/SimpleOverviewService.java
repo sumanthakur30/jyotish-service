@@ -32,6 +32,8 @@ import com.shopmanagement.jyotishservice.api.SimpleOverviewApi.UpcomingItem;
 import com.shopmanagement.jyotishservice.engine.explain.DashaLordThemes;
 import com.shopmanagement.jyotishservice.engine.explain.DashaLordThemes.Theme;
 import com.shopmanagement.jyotishservice.engine.explain.SimpleExplanationComposer;
+import com.shopmanagement.jyotishservice.engine.explain.SimpleExplanationComposer.LordPlacement;
+import com.shopmanagement.jyotishservice.engine.explain.SimpleLabels;
 import com.shopmanagement.jyotishservice.filter.TenantContextFilter;
 import com.shopmanagement.jyotishservice.persistence.entity.DashaPeriodEntity;
 import com.shopmanagement.jyotishservice.persistence.repo.DashaPeriodRepository;
@@ -70,20 +72,20 @@ public class SimpleOverviewService {
     GlanceCard lagna =
         glance(
             "LAGNA",
-            asc != null,
+            asc != null && asc.signName() != null,
             asc != null ? asc.signName() : null,
-            asc != null ? asc.signName() : null,
-            "Lagna (Ascendant) is the rising sign at birth — often used as a starting point for how you meet the world.",
-            "लग्न जन्म के समय उदय राशि है — अक्सर इसे जीवन से मिलने के तरीके का आरंभ बिंदु माना जाता है।");
+            asc != null ? SimpleLabels.signHi(asc.signName()) : null,
+            "Lagna is the rising sign at birth — a simple starting point for how you meet the world.",
+            "लग्न जन्म के समय उदय राशि है — जीवन से मिलने के तरीके का सरल आरंभ बिंदु।");
 
     GlanceCard moonRashi =
         glance(
             "MOON_RASHI",
             moon != null && moon.signName() != null,
             moon != null ? moon.signName() : null,
-            moon != null ? moon.signName() : null,
-            "Moon Rashi is the sign where the Moon sits — traditionally linked with mind and emotional tone.",
-            "चंद्र राशि वह राशि है जहाँ चंद्र बैठा है — पारंपरिक रूप से मन और भावना से जुड़ी मानी जाती है।");
+            moon != null ? SimpleLabels.signHi(moon.signName()) : null,
+            "Moon Rashi is the sign where the Moon sits — traditionally linked with mind and feelings.",
+            "चंद्र राशि वह राशि है जहाँ चंद्र बैठा है — पारंपरिक रूप से मन और भावना से जुड़ी।");
 
     GlanceCard nakshatra =
         glance(
@@ -94,27 +96,29 @@ public class SimpleOverviewService {
                     + (moon.pada() > 0 ? " · pada " + moon.pada() : "")
                 : null,
             moon != null
-                ? moon.nakshatraName()
+                ? SimpleLabels.nakshatraHi(moon.nakshatraName())
                     + (moon.pada() > 0 ? " · पद " + moon.pada() : "")
                 : null,
-            "Nakshatra is the lunar mansion of the Moon — used for Vimshottari dasha and finer character themes.",
-            "नक्षत्र चंद्र का चंद्र-मंडल है — विंशोत्तरी दशा और सूक्ष्म स्वभाव के लिए उपयोग होता है।");
+            "Nakshatra is the Moon’s finer star group — used for the life-period clock and gentle character themes.",
+            "नक्षत्र चंद्र का सूक्ष्म तारा-समूह है — जीवन-अवधि घड़ी और स्वभाव के लिए उपयोग होता है।");
 
     CalculatedTimelineStrip strip = life.calculatedTimeline();
     CurrentDashaStrip current = strip != null ? strip.currentDasha() : null;
     String dashaValueEn = current != null ? current.summaryLine() : null;
+    String dashaValueHi = dashaGlanceHi(current);
     GlanceCard dashaGlance =
         glance(
             "CURRENT_DASHA",
             dashaValueEn != null && !dashaValueEn.isBlank(),
             dashaValueEn,
-            dashaValueEn,
-            "Current Dasha is the life-period clock from the Moon’s nakshatra (Vimshottari system).",
-            "वर्तमान दशा चंद्र नक्षत्र से चलने वाली जीवन-अवधि घड़ी है (विंशोत्तरी पद्धति)।");
+            dashaValueHi != null ? dashaValueHi : dashaValueEn,
+            "Current life period is the clock built from the Moon’s nakshatra in this chart.",
+            "वर्तमान जीवन अवधि इस कुंडली में चंद्र नक्षत्र से बनी घड़ी है।");
 
-    CurrentLifePeriodCard periodCard = buildCurrentPeriod(current);
-    List<LifeAreaCard> areas = buildLifeAreas(life.categories());
+    CurrentLifePeriodCard periodCard = buildCurrentPeriod(current, kundali);
     List<UpcomingItem> upcoming = buildUpcoming(strip != null ? strip.upcomingDasha() : List.of());
+    List<LifeAreaCard> areas =
+        buildLifeAreas(life.categories(), upcoming.isEmpty() ? null : upcoming.get(0));
     List<PresentYogaFact> presentYogas = buildYogas(yogas);
     List<LordTheme> themes = buildLordThemes();
 
@@ -160,7 +164,7 @@ public class SimpleOverviewService {
   public SimplePeriodExplainResponse explainStoredPeriod(
       Long kundaliId, String levelCode, String mahaLord, String antarLord) {
     String tenantId = requireTenant();
-    kundaliService.get(kundaliId); // tenant-scoped 404 if missing
+    KundaliResponse kundali = kundaliService.get(kundaliId); // tenant-scoped 404 if missing
 
     String level = levelCode == null ? "" : levelCode.trim().toUpperCase(Locale.ROOT);
     String maha = norm(mahaLord);
@@ -231,7 +235,9 @@ public class SimpleOverviewService {
             antarTheme != null ? antarTheme.nameEn() : antarCode,
             match.getStartAt(),
             match.getEndAt(),
-            VIMSHOTTARI);
+            VIMSHOTTARI,
+            placementOf(kundali, mahaCode),
+            placementOf(kundali, antarCode));
 
     return new SimplePeriodExplainResponse(
         kundaliId,
@@ -248,7 +254,8 @@ public class SimpleOverviewService {
         SimpleExplanationComposer.GENERAL_DISCLAIMER_HI);
   }
 
-  private CurrentLifePeriodCard buildCurrentPeriod(CurrentDashaStrip current) {
+  private CurrentLifePeriodCard buildCurrentPeriod(
+      CurrentDashaStrip current, KundaliResponse kundali) {
     if (current == null || (current.maha() == null && current.antar() == null)) {
       return null;
     }
@@ -273,32 +280,44 @@ public class SimpleOverviewService {
     Theme mt = DashaLordThemes.themeOrNull(mahaCode);
     Theme at = DashaLordThemes.themeOrNull(antarCode);
     if (mahaName != null && antarName != null) {
-      titleEn = mahaName + " Mahadasha – " + antarName + " Antardasha";
+      titleEn = mahaName + " major period · " + antarName + " chapter";
       titleHi =
           (mt != null ? mt.nameHi() : mahaName)
-              + " महादशा – "
+              + " मुख्य अवधि · "
               + (at != null ? at.nameHi() : antarName)
-              + " अंतर्दशा";
+              + " अध्याय";
     } else if (mahaName != null) {
-      titleEn = mahaName + " Mahadasha";
-      titleHi = (mt != null ? mt.nameHi() : mahaName) + " महादशा";
+      titleEn = mahaName + " major period";
+      titleHi = (mt != null ? mt.nameHi() : mahaName) + " मुख्य अवधि";
     } else {
-      titleEn = antarName + " Antardasha";
-      titleHi = (at != null ? at.nameHi() : antarName) + " अंतर्दशा";
+      titleEn = antarName + " chapter";
+      titleHi = (at != null ? at.nameHi() : antarName) + " अध्याय";
     }
 
     ExplainedBlock explanation =
         SimpleExplanationComposer.explainDashaPeriod(
-            mahaCode, mahaName, antarCode, antarName, start, end, current.systemCode());
+            mahaCode,
+            mahaName,
+            antarCode,
+            antarName,
+            start,
+            end,
+            current.systemCode(),
+            placementOf(kundali, mahaCode),
+            placementOf(kundali, antarCode));
 
     return new CurrentLifePeriodCard(
         titleEn, titleHi, start, end, mahaCode, mahaName, antarCode, antarName, explanation);
   }
 
-  private static List<LifeAreaCard> buildLifeAreas(List<CategorySummary> categories) {
+  private static List<LifeAreaCard> buildLifeAreas(
+      List<CategorySummary> categories, UpcomingItem next) {
     if (categories == null || categories.isEmpty()) {
       return List.of();
     }
+    Instant nextAt = next != null ? next.startAt() : null;
+    String nextEn = next != null ? "Next: " + next.labelEn() : null;
+    String nextHi = next != null ? "अगला: " + next.labelHi() : null;
     List<LifeAreaCard> out = new ArrayList<>();
     for (CategorySummary c : categories) {
       out.add(
@@ -307,10 +326,51 @@ public class SimpleOverviewService {
               c.labelEn(),
               c.labelHi(),
               c.status(),
+              SimpleLabels.statusLineEn(c.status()),
+              SimpleLabels.statusLineHi(c.status()),
               c.currentDashaLine(),
-              c.currentDashaEndAt()));
+              c.currentDashaEndAt(),
+              nextAt,
+              nextEn,
+              nextHi));
     }
     return List.copyOf(out);
+  }
+
+  private static String dashaGlanceHi(CurrentDashaStrip current) {
+    if (current == null) {
+      return null;
+    }
+    CalculatedDashaPeriod maha = current.maha();
+    CalculatedDashaPeriod antar = current.antar();
+    Theme mt = maha != null ? DashaLordThemes.themeOrNull(maha.lordCode()) : null;
+    Theme at = antar != null ? DashaLordThemes.themeOrNull(antar.lordCode()) : null;
+    Instant end =
+        antar != null && antar.endAt() != null
+            ? antar.endAt()
+            : (maha != null ? maha.endAt() : null);
+    String until =
+        end != null
+            ? " · " + end.atZone(java.time.ZoneOffset.UTC).toLocalDate()
+            : "";
+    if (mt != null && at != null) {
+      return mt.nameHi() + " / " + at.nameHi() + until;
+    }
+    if (mt != null) {
+      return mt.nameHi() + until;
+    }
+    return current.summaryLine();
+  }
+
+  private static LordPlacement placementOf(KundaliResponse kundali, String lordCode) {
+    if (kundali == null || lordCode == null || lordCode.isBlank()) {
+      return null;
+    }
+    PlanetDto p = findPlanet(kundali.planets(), lordCode);
+    if (p == null || p.signName() == null) {
+      return null;
+    }
+    return new LordPlacement(p.signName(), p.house(), p.nakshatraName());
   }
 
   private static List<UpcomingItem> buildUpcoming(List<CalculatedDashaPeriod> upcoming) {
@@ -325,19 +385,19 @@ public class SimpleOverviewService {
       String labelEn;
       String labelHi;
       if ("MAHA".equals(level)) {
-        labelEn = (u.lordName() != null ? u.lordName() : u.lordCode()) + " Mahadasha";
-        labelHi = (lord != null ? lord.nameHi() : u.lordName()) + " महादशा";
+        labelEn = (u.lordName() != null ? u.lordName() : u.lordCode()) + " major period";
+        labelHi = (lord != null ? lord.nameHi() : u.lordName()) + " मुख्य अवधि";
       } else {
         String mahaPart = u.mahaLordName() != null ? u.mahaLordName() : u.mahaLordCode();
         labelEn =
-            (mahaPart != null ? mahaPart + " / " : "")
+            (mahaPart != null ? mahaPart + " · " : "")
                 + (u.lordName() != null ? u.lordName() : u.lordCode())
-                + " Antardasha";
+                + " chapter";
         labelHi =
             (maha != null ? maha.nameHi() : mahaPart)
-                + " / "
+                + " · "
                 + (lord != null ? lord.nameHi() : u.lordName())
-                + " अंतर्दशा";
+                + " अध्याय";
       }
       out.add(
           new UpcomingItem(

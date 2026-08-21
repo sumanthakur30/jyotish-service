@@ -26,6 +26,9 @@ public final class SimpleExplanationComposer {
 
   private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
 
+  /** Optional birth-chart placement for a dasha lord (from stored D1 only). */
+  public record LordPlacement(String signName, int house, String nakshatraName) {}
+
   private SimpleExplanationComposer() {}
 
   public static ExplainedBlock emptyUnavailable() {
@@ -40,9 +43,6 @@ public final class SimpleExplanationComposer {
         List.of());
   }
 
-  /**
-   * Builds 3–5 simple paragraphs for a maha/antar pair using only provided lord codes and dates.
-   */
   public static ExplainedBlock explainDashaPeriod(
       String mahaLordCode,
       String mahaLordName,
@@ -51,6 +51,32 @@ public final class SimpleExplanationComposer {
       Instant startAt,
       Instant endAt,
       String systemCode) {
+    return explainDashaPeriod(
+        mahaLordCode,
+        mahaLordName,
+        antarLordCode,
+        antarLordName,
+        startAt,
+        endAt,
+        systemCode,
+        null,
+        null);
+  }
+
+  /**
+   * Builds 3–5 simple paragraphs for a maha/antar pair using only provided lord codes, dates, and
+   * optional D1 placements.
+   */
+  public static ExplainedBlock explainDashaPeriod(
+      String mahaLordCode,
+      String mahaLordName,
+      String antarLordCode,
+      String antarLordName,
+      Instant startAt,
+      Instant endAt,
+      String systemCode,
+      LordPlacement mahaPlacement,
+      LordPlacement antarPlacement) {
     if ((mahaLordCode == null || mahaLordCode.isBlank())
         && (antarLordCode == null || antarLordCode.isBlank())) {
       return emptyUnavailable();
@@ -68,47 +94,45 @@ public final class SimpleExplanationComposer {
 
     if (mahaLabel != null && antarLabel != null) {
       en.add(
-          "You are currently in "
+          "You are in the "
               + mahaLabel
-              + " Mahadasha with "
+              + " major life period, with a "
               + antarLabel
-              + " Antardasha"
+              + " chapter inside it"
               + (range != null ? " (" + range + ")" : "")
-              + ". These names come from your stored Vimshottari timeline.");
+              + ". These names come from your stored life-period timeline.");
       hi.add(
-          "आप वर्तमान में "
+          "आप "
               + (maha != null ? maha.nameHi() : mahaLabel)
-              + " महादशा और "
+              + " की मुख्य जीवन अवधि में हैं, और उसके भीतर "
               + (antar != null ? antar.nameHi() : antarLabel)
-              + " अंतर्दशा में हैं"
+              + " का अध्याय चल रहा है"
               + (range != null ? " (" + range + ")" : "")
-              + "। ये नाम संग्रहीत विंशोत्तरी कालखंड से लिए गए हैं।");
+              + "। ये नाम संग्रहीत जीवन-अवधि समयरेखा से लिए गए हैं।");
     } else if (mahaLabel != null) {
       en.add(
-          "Your current major period is "
+          "Your current major life period is "
               + mahaLabel
-              + " Mahadasha"
               + (range != null ? " (" + range + ")" : "")
-              + ", taken from the stored dasha calculation.");
+              + ", taken from the stored period calculation.");
       hi.add(
-          "आपकी वर्तमान मुख्य अवधि "
+          "आपकी वर्तमान मुख्य जीवन अवधि "
               + (maha != null ? maha.nameHi() : mahaLabel)
-              + " महादशा है"
+              + " है"
               + (range != null ? " (" + range + ")" : "")
-              + " — यह संग्रहीत दशा गणना से है।");
+              + " — यह संग्रहीत अवधि गणना से है।");
     } else {
       en.add(
-          "Your current sub-period is "
+          "Your current chapter is "
               + antarLabel
-              + " Antardasha"
               + (range != null ? " (" + range + ")" : "")
-              + ", taken from the stored dasha calculation.");
+              + ", taken from the stored period calculation.");
       hi.add(
-          "आपकी वर्तमान उप-अवधि "
+          "आपका वर्तमान अध्याय "
               + (antar != null ? antar.nameHi() : antarLabel)
-              + " अंतर्दशा है"
+              + " है"
               + (range != null ? " (" + range + ")" : "")
-              + " — यह संग्रहीत दशा गणना से है।");
+              + " — यह संग्रहीत अवधि गणना से है।");
     }
 
     if (maha != null && !maha.meaningEn().isEmpty()) {
@@ -119,18 +143,25 @@ public final class SimpleExplanationComposer {
       String antarLineEn =
           "Within this, the "
               + antar.nameEn()
-              + " Antardasha "
+              + " chapter "
               + soften(antar.meaningEn().get(0));
       String antarLineHi =
           "इसके भीतर "
               + antar.nameHi()
-              + " अंतर्दशा "
+              + " अध्याय "
               + softenHi(antar.meaningHi().get(0));
       en.add(antarLineEn);
       hi.add(antarLineHi);
     } else if (maha != null && maha.meaningEn().size() > 1) {
       en.add(maha.meaningEn().get(1));
       hi.add(maha.meaningHi().get(1));
+    }
+
+    String placeEn = placementSentenceEn(mahaLabel, mahaPlacement, antarLabel, antarPlacement);
+    String placeHi = placementSentenceHi(maha, mahaLabel, mahaPlacement, antar, antarLabel, antarPlacement);
+    if (placeEn != null) {
+      en.add(placeEn);
+      hi.add(placeHi);
     }
 
     en.add(
@@ -142,24 +173,26 @@ public final class SimpleExplanationComposer {
 
     List<FactBullet> why = new ArrayList<>();
     if (systemCode != null && !systemCode.isBlank()) {
-      why.add(new FactBullet("SYSTEM", "Dasha system", "दशा प्रणाली", systemCode));
+      why.add(new FactBullet("SYSTEM", "Period system", "अवधि प्रणाली", systemCode));
     }
     if (mahaLordCode != null && !mahaLordCode.isBlank()) {
       why.add(
           new FactBullet(
               "MAHA",
-              "Mahadasha lord",
-              "महादशा स्वामी",
+              "Major period lord",
+              "मुख्य अवधि स्वामी",
               mahaLabel != null ? mahaLabel : mahaLordCode));
     }
     if (antarLordCode != null && !antarLordCode.isBlank()) {
       why.add(
           new FactBullet(
               "ANTAR",
-              "Antardasha lord",
-              "अंतर्दशा स्वामी",
+              "Chapter lord",
+              "अध्याय स्वामी",
               antarLabel != null ? antarLabel : antarLordCode));
     }
+    addPlacementFacts(why, "MAHA_PLACE", "Major lord in chart", "मुख्य स्वामी कुंडली में", mahaPlacement);
+    addPlacementFacts(why, "ANTAR_PLACE", "Chapter lord in chart", "अध्याय स्वामी कुंडली में", antarPlacement);
     if (startAt != null) {
       why.add(new FactBullet("START", "Period starts", "अवधि आरंभ", ISO_DATE.format(toDate(startAt))));
     }
@@ -171,9 +204,8 @@ public final class SimpleExplanationComposer {
             "SOURCE",
             "Source",
             "स्रोत",
-            "Stored dasha_period rows (not invented)"));
+            "Stored period rows (not invented) / संग्रहीत अवधि पंक्तियाँ (कल्पित नहीं)"));
 
-    // Cap at 5 paragraphs
     if (en.size() > 5) {
       en = new ArrayList<>(en.subList(0, 5));
       hi = new ArrayList<>(hi.subList(0, 5));
@@ -182,12 +214,117 @@ public final class SimpleExplanationComposer {
     return new ExplainedBlock(false, List.copyOf(en), List.copyOf(hi), List.copyOf(why));
   }
 
+  private static void addPlacementFacts(
+      List<FactBullet> why, String code, String labelEn, String labelHi, LordPlacement p) {
+    if (p == null || (p.signName() == null && p.house() <= 0)) {
+      return;
+    }
+    StringBuilder v = new StringBuilder();
+    if (p.signName() != null && !p.signName().isBlank()) {
+      v.append(p.signName());
+    }
+    if (p.house() > 0) {
+      if (v.length() > 0) {
+        v.append(" · ");
+      }
+      v.append("House ").append(p.house());
+    }
+    if (p.nakshatraName() != null && !p.nakshatraName().isBlank()) {
+      if (v.length() > 0) {
+        v.append(" · ");
+      }
+      v.append(p.nakshatraName());
+    }
+    why.add(new FactBullet(code, labelEn, labelHi, v.toString()));
+  }
+
+  private static String placementSentenceEn(
+      String mahaLabel, LordPlacement maha, String antarLabel, LordPlacement antar) {
+    List<String> parts = new ArrayList<>();
+    if (maha != null && maha.signName() != null && maha.house() > 0 && mahaLabel != null) {
+      parts.add(
+          mahaLabel
+              + " sits in "
+              + maha.signName()
+              + " (house "
+              + maha.house()
+              + ") in this birth chart");
+    }
+    if (antar != null
+        && antar.signName() != null
+        && antar.house() > 0
+        && antarLabel != null
+        && (maha == null
+            || !samePlacement(maha, antar)
+            || (mahaLabel != null && !mahaLabel.equalsIgnoreCase(antarLabel)))) {
+      parts.add(
+          antarLabel
+              + " sits in "
+              + antar.signName()
+              + " (house "
+              + antar.house()
+              + ")");
+    }
+    if (parts.isEmpty()) {
+      return null;
+    }
+    return String.join("; ", parts) + " — facts from the stored chart, not predictions.";
+  }
+
+  private static String placementSentenceHi(
+      Theme mahaTheme,
+      String mahaLabel,
+      LordPlacement maha,
+      Theme antarTheme,
+      String antarLabel,
+      LordPlacement antar) {
+    List<String> parts = new ArrayList<>();
+    String mahaName = mahaTheme != null ? mahaTheme.nameHi() : mahaLabel;
+    String antarName = antarTheme != null ? antarTheme.nameHi() : antarLabel;
+    if (maha != null && maha.signName() != null && maha.house() > 0 && mahaName != null) {
+      parts.add(
+          mahaName
+              + " इस जन्म कुंडली में "
+              + SimpleLabels.signHi(maha.signName())
+              + " (भाव "
+              + maha.house()
+              + ") में हैं");
+    }
+    if (antar != null
+        && antar.signName() != null
+        && antar.house() > 0
+        && antarName != null
+        && (maha == null
+            || !samePlacement(maha, antar)
+            || (mahaLabel != null && antarLabel != null && !mahaLabel.equalsIgnoreCase(antarLabel)))) {
+      parts.add(
+          antarName
+              + " "
+              + SimpleLabels.signHi(antar.signName())
+              + " (भाव "
+              + antar.house()
+              + ") में हैं");
+    }
+    if (parts.isEmpty()) {
+      return null;
+    }
+    return String.join("; ", parts) + " — ये संग्रहीत कुंडली तथ्य हैं, भविष्यवाणी नहीं।";
+  }
+
+  private static boolean samePlacement(LordPlacement a, LordPlacement b) {
+    if (a == null || b == null) {
+      return false;
+    }
+    return a.house() == b.house()
+        && ((a.signName() == null && b.signName() == null)
+            || (a.signName() != null && a.signName().equalsIgnoreCase(b.signName())));
+  }
+
   private static String soften(String sentence) {
     String s = sentence.trim();
     if (s.toLowerCase(Locale.ROOT).startsWith("may be considered")) {
       return s;
     }
-    // Re-anchor antar theme as continuation
     if (s.endsWith(".")) {
       s = s.substring(0, s.length() - 1);
     }
