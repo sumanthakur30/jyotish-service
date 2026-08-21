@@ -62,9 +62,12 @@ public final class MeeusEphemeris implements EphemerisProvider {
     double lstHours = gst + longitudeDeg / 15.0;
     double ramc = AstroMath.norm360(lstHours * 15.0); // local sidereal degrees = RAMC
 
+    // Standard ecliptic Ascendant (Meeus / Swiss convention). Negating both atan2 args
+    // previously yielded ASC+180° (e.g. Pisces vs Virgo at the same degree-in-sign).
     double lat = latitudeDeg;
-    double y = -AstroMath.cosd(ramc);
-    double x = AstroMath.sind(ramc) * AstroMath.cosd(eps) + AstroMath.tand(lat) * AstroMath.sind(eps);
+    double y = AstroMath.cosd(ramc);
+    double x =
+        -(AstroMath.sind(ramc) * AstroMath.cosd(eps) + AstroMath.tand(lat) * AstroMath.sind(eps));
     double asc = AstroMath.toDeg(Math.atan2(y, x));
     return AstroMath.norm360(asc);
   }
