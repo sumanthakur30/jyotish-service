@@ -47,7 +47,7 @@ class GocharTransitCalculatorTest {
 
     TransitChart chart = engine.computeTransit(TransitSystemCode.GOCHAR, request, d1.planets());
 
-    assertEquals("V1.5", chart.engineVersion());
+    assertEquals("V1.6", chart.engineVersion());
     assertEquals(TransitSystemCode.GOCHAR, chart.system());
     assertEquals(9, chart.rows().size());
     assertEquals(d1.ascendant().signIndex(), chart.natalLagnaSignIndex());

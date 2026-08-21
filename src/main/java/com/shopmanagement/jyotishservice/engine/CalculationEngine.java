@@ -28,6 +28,9 @@ import com.shopmanagement.jyotishservice.engine.varga.VargaRegistry;
 import com.shopmanagement.jyotishservice.engine.matching.MatchingPerson;
 import com.shopmanagement.jyotishservice.engine.matching.MatchingRegistry;
 import com.shopmanagement.jyotishservice.engine.matching.MatchingReport;
+import com.shopmanagement.jyotishservice.engine.panchang.PanchangCalculator;
+import com.shopmanagement.jyotishservice.engine.panchang.PanchangRequest;
+import com.shopmanagement.jyotishservice.engine.panchang.PanchangResult;
 import com.shopmanagement.jyotishservice.engine.transit.TransitChart;
 import com.shopmanagement.jyotishservice.engine.transit.TransitRegistry;
 import com.shopmanagement.jyotishservice.engine.transit.TransitRequest;
@@ -37,17 +40,17 @@ import com.shopmanagement.jyotishservice.engine.yoga.YogaRegistry;
 import com.shopmanagement.jyotishservice.engine.yoga.YogaReport;
 
 /**
- * Pure calculation engine (no Spring). V1.5 sidereal D1 via pluggable {@link EphemerisProvider}
+ * Pure calculation engine (no Spring). V1.6 sidereal D1 via pluggable {@link EphemerisProvider}
  * (default {@link MeeusEphemeris}; optional Swiss) + configurable ayanamsa, Parashara Vargas
  * (D2/D3/D9/D10) via {@link VargaRegistry}, Vimshottari dasha via {@link DashaRegistry},
- * rule-based yogas via {@link YogaRegistry}, Kundali matching via {@link MatchingRegistry}, and
- * Gochar transit via {@link TransitRegistry}. Whole-sign houses. Combust is stubbed false (Coming
- * Soon).
+ * rule-based yogas via {@link YogaRegistry}, Kundali matching via {@link MatchingRegistry},
+ * Gochar transit via {@link TransitRegistry}, and Panchang via {@link PanchangCalculator}.
+ * Whole-sign houses. Combust is stubbed false (Coming Soon).
  */
 public final class CalculationEngine {
 
-  /** Bumped to V1.5 when Gochar / Transit surface was added (Phase 7). */
-  public static final String VERSION = "V1.5";
+  /** Bumped to V1.6 when Panchang surface was added. */
+  public static final String VERSION = "V1.6";
 
   private static final EnumSet<Planet> CHART_PLANETS =
       EnumSet.of(
@@ -252,6 +255,14 @@ public final class CalculationEngine {
       TransitSystemCode system, TransitRequest request, List<PlanetPosition> natalPlanets) {
     return TransitRegistry.requireCalculator(system)
         .compute(request, natalPlanets, ephemeris, VERSION);
+  }
+
+  /**
+   * Classical Panchang (Tithi–Karana + sunrise/sunset) for a civil date and place. Compute-only —
+   * no persistence.
+   */
+  public PanchangResult computePanchang(PanchangRequest request) {
+    return PanchangCalculator.compute(request, ephemeris, VERSION);
   }
 
   private static String notesFor(VargaCode code) {
