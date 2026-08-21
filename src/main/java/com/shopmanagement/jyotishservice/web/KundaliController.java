@@ -18,6 +18,7 @@ import com.shopmanagement.jyotishservice.api.KundaliApi.KundaliResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.PlanetListResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.VargaChartResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.YogaListResponse;
+import com.shopmanagement.jyotishservice.entitlement.JyotishEntitlementGuard;
 import com.shopmanagement.jyotishservice.service.KundaliService;
 
 import jakarta.validation.Valid;
@@ -27,55 +28,67 @@ import jakarta.validation.Valid;
 public class KundaliController {
 
   private final KundaliService kundaliService;
+  private final JyotishEntitlementGuard entitlementGuard;
 
-  public KundaliController(KundaliService kundaliService) {
+  public KundaliController(
+      KundaliService kundaliService, JyotishEntitlementGuard entitlementGuard) {
     this.kundaliService = kundaliService;
+    this.entitlementGuard = entitlementGuard;
   }
 
   @PostMapping("/generate")
   @ResponseStatus(HttpStatus.CREATED)
   public KundaliResponse generate(@Valid @RequestBody GenerateRequest body) {
+    entitlementGuard.requireJyotishAccess();
     return kundaliService.generate(body);
   }
 
   @GetMapping("/{id}")
   public KundaliResponse get(@PathVariable Long id) {
+    entitlementGuard.requireJyotishAccess();
     return kundaliService.get(id);
   }
 
   @GetMapping("/{id}/planets")
   public PlanetListResponse planets(@PathVariable Long id) {
+    entitlementGuard.requireJyotishAccess();
     return kundaliService.planets(id);
   }
 
   @GetMapping("/{id}/houses")
   public HouseListResponse houses(@PathVariable Long id) {
+    entitlementGuard.requireJyotishAccess();
     return kundaliService.houses(id);
   }
 
   @GetMapping("/{id}/charts")
   public ChartListResponse charts(@PathVariable Long id) {
+    entitlementGuard.requireJyotishAccess();
     return kundaliService.listCharts(id);
   }
 
   @GetMapping("/{id}/charts/{varga}")
   public VargaChartResponse chart(@PathVariable Long id, @PathVariable String varga) {
+    entitlementGuard.requireJyotishAccess();
     return kundaliService.getChart(id, varga);
   }
 
   @GetMapping("/{id}/dasha")
   public DashaResponse dashaDefault(@PathVariable Long id) {
+    entitlementGuard.requireJyotishAccess();
     return kundaliService.getDasha(id, "VIMSHOTTARI");
   }
 
   @GetMapping("/{id}/dasha/{system}")
   public DashaResponse dasha(@PathVariable Long id, @PathVariable String system) {
+    entitlementGuard.requireJyotishAccess();
     return kundaliService.getDasha(id, system);
   }
 
   @GetMapping("/{id}/yogas")
   public YogaListResponse yogas(
       @PathVariable Long id, @RequestParam(required = false) String category) {
+    entitlementGuard.requireJyotishAccess();
     return kundaliService.getYogas(id, category);
   }
 }

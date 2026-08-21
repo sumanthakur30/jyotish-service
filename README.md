@@ -157,7 +157,24 @@ curl "http://localhost:8097/api/v1/jyotish/matching/1" \
 
 ## Entitlements
 
-`jyotish.entitlement.enabled=false` in local profile.
+Local default: `jyotish.entitlement.enabled=false` (`application-local.properties`) — no subscription calls; all heavy APIs work.
 
-When enabled, calls subscription-service feature flag `FEATURE_JYOTISH` (catalog TBD).  
-AI remote / SaaS gate stub: `FEATURE_JYOTISH_AI` (`jyotish.ai.entitlement-flag`).
+### Enable SaaS gates (prod / staging)
+
+```bash
+export JYOTISH_ENTITLEMENT_ENABLED=true
+export JYOTISH_SUBSCRIPTION_BASE_URL=http://localhost:8182   # subscription-service
+# optional fail-open if subscription unreachable:
+# export JYOTISH_ENTITLEMENT_FAIL_OPEN=true
+```
+
+When enabled, jyotish-service calls `GET {base-url}/api/subscription/feature-flags/{FLAG}` with `X-Tenant-Id`:
+
+| Flag | Gates |
+|------|--------|
+| `FEATURE_JYOTISH` | Kundali + transit |
+| `FEATURE_JYOTISH_MATCHING` | Matching |
+| `FEATURE_JYOTISH_REPORTS` | PDF reports |
+| `FEATURE_JYOTISH_AI` | AI ask |
+
+Deny → **403** `JYOTISH_ENTITLEMENT_DENIED`. UI: `GET /api/v1/jyotish/entitlements` for tab gating. Catalog seed notes: `docs/PLATFORM-JYOTISH-SUBSCRIPTION-SEED.md`.

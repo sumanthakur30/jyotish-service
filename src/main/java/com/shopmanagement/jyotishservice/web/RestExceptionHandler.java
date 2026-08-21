@@ -14,10 +14,22 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.shopmanagement.jyotishservice.entitlement.JyotishEntitlementException;
+
 @RestControllerAdvice
 public class RestExceptionHandler {
 
   private static final Logger log = LoggerFactory.getLogger(RestExceptionHandler.class);
+
+  @ExceptionHandler(JyotishEntitlementException.class)
+  public ResponseEntity<Map<String, Object>> handleEntitlement(JyotishEntitlementException ex) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("message", ex.getMessage());
+    payload.put("code", "JYOTISH_ENTITLEMENT_DENIED");
+    payload.put("status", HttpStatus.FORBIDDEN.value());
+    payload.put("timestamp", Instant.now().toString());
+    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(payload);
+  }
 
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {

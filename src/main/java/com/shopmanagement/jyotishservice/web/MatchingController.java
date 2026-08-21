@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.shopmanagement.jyotishservice.api.MatchingApi.MatchRequest;
 import com.shopmanagement.jyotishservice.api.MatchingApi.MatchingResponse;
+import com.shopmanagement.jyotishservice.entitlement.JyotishEntitlementGuard;
 import com.shopmanagement.jyotishservice.service.MatchingService;
 
 import jakarta.validation.Valid;
@@ -20,19 +21,24 @@ import jakarta.validation.Valid;
 public class MatchingController {
 
   private final MatchingService matchingService;
+  private final JyotishEntitlementGuard entitlementGuard;
 
-  public MatchingController(MatchingService matchingService) {
+  public MatchingController(
+      MatchingService matchingService, JyotishEntitlementGuard entitlementGuard) {
     this.matchingService = matchingService;
+    this.entitlementGuard = entitlementGuard;
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public MatchingResponse match(@Valid @RequestBody MatchRequest body) {
+    entitlementGuard.requireMatchingAccess();
     return matchingService.match(body);
   }
 
   @GetMapping("/{id}")
   public MatchingResponse get(@PathVariable Long id) {
+    entitlementGuard.requireMatchingAccess();
     return matchingService.get(id);
   }
 }
