@@ -16,3 +16,7 @@
 !/third_party/swiss-ephemeris/ephe/README.md
 /third_party/swiss-ephemeris/probe/
 *.se1
+
+local-service.pid
+v17-test-results.json
+*.pid
