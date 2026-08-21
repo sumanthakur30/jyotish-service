@@ -16,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.shopmanagement.jyotishservice.api.ReportApi.CreateReportRequest;
 import com.shopmanagement.jyotishservice.api.ReportApi.ReportResponse;
+import com.shopmanagement.jyotishservice.api.ReportTypes;
 import com.shopmanagement.jyotishservice.config.JyotishReportProperties;
 import com.shopmanagement.jyotishservice.filter.TenantContextFilter;
 import com.shopmanagement.jyotishservice.persistence.entity.DashaPeriodEntity;
@@ -39,10 +40,10 @@ import com.shopmanagement.jyotishservice.service.report.ReportPdfRenderer;
 @Service
 public class ReportService {
 
-  public static final String TYPE_BASIC_KUNDALI = "BASIC_KUNDALI";
-  public static final String TYPE_MATCHING = "MATCHING";
-  public static final String TYPE_DASHA_SUMMARY = "DASHA_SUMMARY";
-  public static final String TYPE_TRANSIT = "TRANSIT";
+  public static final String TYPE_BASIC_KUNDALI = ReportTypes.BASIC_KUNDALI;
+  public static final String TYPE_MATCHING = ReportTypes.MATCHING;
+  public static final String TYPE_DASHA_SUMMARY = ReportTypes.DASHA_SUMMARY;
+  public static final String TYPE_TRANSIT = ReportTypes.TRANSIT;
 
   private final KundaliReportRepository reportRepository;
   private final KundaliSnapshotRepository kundaliRepository;
@@ -81,10 +82,13 @@ public class ReportService {
   @Transactional
   public ReportResponse create(CreateReportRequest request) {
     String tenantId = requireTenant();
-    if (request == null || request.type() == null || request.type().isBlank()) {
+    if (request == null) {
       throw new IllegalArgumentException("type is required");
     }
-    String type = request.type().trim().toUpperCase(Locale.ROOT);
+    String type = ReportTypes.resolve(request.type());
+    if (!ReportTypes.isCanonical(type)) {
+      throw new IllegalArgumentException(ReportTypes.ALLOWED_MESSAGE);
+    }
 
     byte[] pdf;
     String title;
@@ -162,8 +166,7 @@ public class ReportService {
         engineVersion = transit.getCalculationEngineVersion();
       }
       default ->
-          throw new IllegalArgumentException(
-              "Unsupported report type. Use BASIC_KUNDALI, MATCHING, DASHA_SUMMARY, or TRANSIT");
+          throw new IllegalArgumentException(ReportTypes.ALLOWED_MESSAGE);
     }
 
     if (pdf == null || pdf.length == 0) {

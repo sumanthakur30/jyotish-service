@@ -6,6 +6,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -16,11 +18,26 @@ public final class PanchangApi {
 
   private PanchangApi() {}
 
+  /**
+   * POST body for panchang. Canonical fields: {@code lat}, {@code lon}, {@code timezone}. Aliases:
+   * {@code latitude}, {@code longitude}, {@code timeZone}.
+   */
   public record PanchangRequestBody(
-      @NotNull LocalDate date,
-      @NotNull @DecimalMin("-90.0") @DecimalMax("90.0") BigDecimal lat,
-      @NotNull @DecimalMin("-180.0") @DecimalMax("180.0") BigDecimal lon,
-      @NotBlank @Size(max = 64) String timezone,
+      @NotNull(message = "date is required (yyyy-MM-dd)") LocalDate date,
+      @JsonAlias("latitude")
+          @NotNull(message = "lat (or latitude) is required")
+          @DecimalMin("-90.0")
+          @DecimalMax("90.0")
+          BigDecimal lat,
+      @JsonAlias("longitude")
+          @NotNull(message = "lon (or longitude) is required")
+          @DecimalMin("-180.0")
+          @DecimalMax("180.0")
+          BigDecimal lon,
+      @JsonAlias({"timeZone", "time_zone"})
+          @NotBlank(message = "timezone (or timeZone) is required")
+          @Size(max = 64)
+          String timezone,
       @Size(max = 256) String placeName,
       @Size(max = 32) String ayanamsaCode) {}
 

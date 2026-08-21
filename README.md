@@ -30,14 +30,14 @@ Sugam Jyotish bounded context — Vedic astrology calculation + Kundali SaaS.
 | `GET /api/v1/jyotish/matching/{id}` | Stored matching session |
 | `GET /api/v1/jyotish/kundali/{id}/transit?date=` | Gochar for date (default: now / today) |
 | `POST /api/v1/jyotish/transit` | Gochar with `{ kundaliId, date?, time? }` |
-| `POST /api/v1/jyotish/reports` | Generate PDF (`BASIC_KUNDALI` / `MATCHING` / optional `DASHA_SUMMARY` / `TRANSIT`) |
+| `POST /api/v1/jyotish/reports` | Generate PDF — canonical types `BASIC_KUNDALI` / `MATCHING` / `DASHA_SUMMARY` / `TRANSIT` (aliases for basic: `KUNDALI_SUMMARY`, `KUNDALI`, `BASIC`) |
 | `GET /api/v1/jyotish/reports/{id}` | Report metadata |
 | `GET /api/v1/jyotish/reports/{id}/download` | PDF bytes |
 | `GET /api/v1/jyotish/clients/dashboard` | CRM counts (clients + today’s appointments) |
 | `POST/GET/PUT/DELETE /api/v1/jyotish/clients` | Astrologer client CRUD (+ `?q=` search) |
 | `POST/GET/PUT/DELETE /api/v1/jyotish/appointments` | Appointments (+ filters `clientId`, `fromDate`, `toDate`, `status`) |
 | `POST /api/v1/jyotish/ai/ask` | AI Jyotish Assistant `{ kundaliId, question, topic? }` |
-| `GET /api/v1/jyotish/panchang?date=&lat=&lon=&timezone=` | Panchang (Tithi–Karana + sunrise/sunset; compute-only) |
+| `GET /api/v1/jyotish/panchang?date=&lat=&lon=&timezone=` | Panchang (aliases: `latitude`/`longitude`/`timeZone`) |
 | `POST /api/v1/jyotish/panchang` | Same via JSON body |
 
 Flyway **V1**: workspace + birth profile tables.  
@@ -137,11 +137,19 @@ Status endpoint reports active provider. Kundali `input_json` stamps `ephemerisP
 
 ## Reports (example)
 
+Canonical `type` values: `BASIC_KUNDALI`, `MATCHING`, `DASHA_SUMMARY`, `TRANSIT`.
+Aliases for basic kundali PDF: `KUNDALI_SUMMARY`, `KUNDALI`, `BASIC` (stored as `BASIC_KUNDALI`).
+
 ```bash
 curl -X POST http://localhost:8097/api/v1/jyotish/reports \
   -H "Content-Type: application/json" \
   -H "X-Tenant-Id: JYOTISH-DEMO-01" \
   -d "{\"type\":\"BASIC_KUNDALI\",\"kundaliId\":1}"
+
+curl -X POST http://localhost:8097/api/v1/jyotish/reports \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01" \
+  -d "{\"type\":\"KUNDALI_SUMMARY\",\"kundaliId\":1}"
 
 curl -OJ "http://localhost:8097/api/v1/jyotish/reports/1/download" \
   -H "X-Tenant-Id: JYOTISH-DEMO-01"
@@ -178,14 +186,25 @@ curl "http://localhost:8097/api/v1/jyotish/matching/1" \
 
 ## Panchang (example)
 
+Canonical query/body fields: `lat`, `lon`, `timezone`. Also accepted: `latitude`, `longitude`, `timeZone`.
+Missing coords/timezone → **400** with a clear message (not 500).
+
 ```bash
 curl "http://localhost:8097/api/v1/jyotish/panchang?date=2024-01-01&lat=28.6139&lon=77.209&timezone=Asia/Kolkata&placeName=Delhi" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01"
+
+curl "http://localhost:8097/api/v1/jyotish/panchang?date=2024-01-01&latitude=28.6139&longitude=77.209&timeZone=Asia/Kolkata&placeName=Delhi" \
   -H "X-Tenant-Id: JYOTISH-DEMO-01"
 
 curl -X POST http://localhost:8097/api/v1/jyotish/panchang \
   -H "Content-Type: application/json" \
   -H "X-Tenant-Id: JYOTISH-DEMO-01" \
   -d "{\"date\":\"2024-01-01\",\"lat\":28.6139,\"lon\":77.209,\"timezone\":\"Asia/Kolkata\",\"placeName\":\"Delhi, India\"}"
+
+curl -X POST http://localhost:8097/api/v1/jyotish/panchang \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01" \
+  -d "{\"date\":\"2024-01-01\",\"latitude\":28.6139,\"longitude\":77.209,\"timeZone\":\"Asia/Kolkata\",\"placeName\":\"Delhi, India\"}"
 ```
 
 ## Entitlements

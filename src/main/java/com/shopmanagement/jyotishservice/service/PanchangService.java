@@ -38,11 +38,14 @@ public class PanchangService {
     if (date == null) {
       throw new IllegalArgumentException("date is required (yyyy-MM-dd)");
     }
-    if (lat == null || lon == null) {
-      throw new IllegalArgumentException("lat and lon are required");
+    if (lat == null) {
+      throw new IllegalArgumentException("lat (or latitude) is required");
+    }
+    if (lon == null) {
+      throw new IllegalArgumentException("lon (or longitude) is required");
     }
     if (timezone == null || timezone.isBlank()) {
-      throw new IllegalArgumentException("timezone is required");
+      throw new IllegalArgumentException("timezone (or timeZone) is required");
     }
     return compute(
         new PanchangRequestBody(date, lat, lon, timezone.trim(), placeName, ayanamsaCode));

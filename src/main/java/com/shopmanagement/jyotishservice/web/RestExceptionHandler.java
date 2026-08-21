@@ -10,8 +10,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.shopmanagement.jyotishservice.entitlement.JyotishEntitlementException;
@@ -34,6 +36,19 @@ public class RestExceptionHandler {
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
     return body(HttpStatus.BAD_REQUEST, ex.getMessage());
+  }
+
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  public ResponseEntity<Map<String, Object>> handleMissingParam(
+      MissingServletRequestParameterException ex) {
+    return body(HttpStatus.BAD_REQUEST, "Missing required parameter: " + ex.getParameterName());
+  }
+
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<Map<String, Object>> handleTypeMismatch(
+      MethodArgumentTypeMismatchException ex) {
+    String name = ex.getName() != null ? ex.getName() : "parameter";
+    return body(HttpStatus.BAD_REQUEST, "Invalid value for parameter: " + name);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
