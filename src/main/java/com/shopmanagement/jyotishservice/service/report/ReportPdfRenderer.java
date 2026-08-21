@@ -7,6 +7,7 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
@@ -49,7 +50,7 @@ public class ReportPdfRenderer {
       TransitSnapshotEntity transit,
       List<TransitPlanetPositionEntity> transitPlanets) {
     return renderNamed(
-        "Sugam Jyotish — Basic Kundali", snap, planets, mahaPeriods, transit, transitPlanets);
+        "Sugam Jyotish — Kundli Pack", snap, planets, mahaPeriods, transit, transitPlanets);
   }
 
   public byte[] renderDashaSummary(
@@ -169,14 +170,15 @@ public class ReportPdfRenderer {
     try {
       ByteArrayOutputStream out = new ByteArrayOutputStream();
       Document doc = new Document();
-      PdfWriter.getInstance(doc, out);
+      PdfWriter writer = PdfWriter.getInstance(doc, out);
       doc.open();
 
       Font title = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
       Font heading = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
-      Font bold = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
-      Font normal = FontFactory.getFont(FontFactory.HELVETICA, 10);
+      Font bold = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
+      Font normal = FontFactory.getFont(FontFactory.HELVETICA, 9);
       Font small = FontFactory.getFont(FontFactory.HELVETICA, 8);
+      Font chartFont = FontFactory.getFont(FontFactory.HELVETICA, 7);
 
       doc.add(new Paragraph(docTitle, title));
       doc.add(new Paragraph(" ", normal));
@@ -222,37 +224,120 @@ public class ReportPdfRenderer {
       doc.add(new Paragraph(" ", normal));
 
       if (planets != null && !planets.isEmpty()) {
-        doc.add(new Paragraph("D1 planet positions", heading));
-        PdfPTable table = new PdfPTable(6);
+        doc.add(new Paragraph("Nirayana Graha Spashta (D1)", heading));
+        PdfPTable table = new PdfPTable(8);
         table.setWidthPercentage(100);
-        table.setWidths(new float[] {1.4f, 1.4f, 1.2f, 0.8f, 1.6f, 0.6f});
-        table.addCell(header("Body", bold));
+        table.setWidths(new float[] {1.3f, 1.2f, 1.3f, 1.0f, 0.7f, 1.5f, 0.5f, 0.6f});
+        table.addCell(header("Planet", bold));
         table.addCell(header("Sign", bold));
-        table.addCell(header("Degree", bold));
-        table.addCell(header("House", bold));
+        table.addCell(header("D:M:S", bold));
+        table.addCell(header("Motion", bold));
+        table.addCell(header("H", bold));
         table.addCell(header("Nakshatra", bold));
+        table.addCell(header("Pada", bold));
         table.addCell(header("R", bold));
 
-        table.addCell(cell("Ascendant", normal));
+        table.addCell(cell("Lagna", normal));
         table.addCell(cell(signName(snap.getAscendantSignIndex()), normal));
-        table.addCell(cell(fmt(degreeInSign(snap.getAscendantLongitude())), normal));
+        table.addCell(cell(fmtDms(degreeInSign(snap.getAscendantLongitude())), normal));
+        table.addCell(cell("—", normal));
         table.addCell(cell("1", normal));
+        table.addCell(cell("—", normal));
         table.addCell(cell("—", normal));
         table.addCell(cell("", normal));
 
         for (PlanetaryPositionEntity p : planets) {
+          if ("ASCENDANT".equalsIgnoreCase(p.getPlanetCode())) {
+            continue;
+          }
           table.addCell(cell(p.getPlanetCode(), normal));
           table.addCell(cell(p.getSignName(), normal));
-          table.addCell(cell(fmt(p.getDegreeInSign()), normal));
+          table.addCell(cell(fmtDms(p.getDegreeInSign()), normal));
+          table.addCell(cell(p.isRetrograde() ? "Retrograde" : "Direct", normal));
           table.addCell(cell(String.valueOf(p.getHouse()), normal));
-          table.addCell(cell(p.getNakshatraName() + " p" + p.getPada(), normal));
+          table.addCell(cell(nullSafe(p.getNakshatraName()), normal));
+          table.addCell(cell(String.valueOf(p.getPada()), normal));
           table.addCell(cell(p.isRetrograde() ? "R" : "", normal));
         }
         doc.add(table);
+
+        // Page 2: Lagna + Chandra charts
+        doc.newPage();
+        doc.add(new Paragraph(nullSafe(snap.getDisplayName()) + " — Charts", heading));
+        doc.add(new Paragraph(" ", small));
+        Map<String, Integer> natal = NorthIndianPdfDrawer.natalHouses(planets);
+        natal.put("ASCENDANT", 1);
+        int lagnaSign = snap.getAscendantSignIndex();
+        float pageW = doc.getPageSize().getWidth();
+        float margin = 40f;
+        float chartSize = Math.min(220f, (pageW - 3 * margin) / 2f);
+
+        NorthIndianPdfDrawer.draw(
+            doc,
+            writer,
+            chartFont,
+            margin,
+            doc.getPageSize().getHeight() - margin - chartSize - 30,
+            chartSize,
+            "Lagna Kundli",
+            lagnaSign,
+            natal);
+
+        Integer moonHouse = natal.get("MOON");
+        Integer moonSign = null;
+        for (PlanetaryPositionEntity p : planets) {
+          if ("MOON".equalsIgnoreCase(p.getPlanetCode())) {
+            moonSign = (int) p.getSignIndex();
+            break;
+          }
+        }
+        if (moonHouse != null && moonSign != null) {
+          Map<String, Integer> chandra = NorthIndianPdfDrawer.rehouse(natal, moonHouse);
+          chandra.put("ASCENDANT", 1);
+          NorthIndianPdfDrawer.draw(
+              doc,
+              writer,
+              chartFont,
+              margin + chartSize + margin,
+              doc.getPageSize().getHeight() - margin - chartSize - 30,
+              chartSize,
+              "Chandra Kundli",
+              moonSign,
+              chandra);
+        }
+
+        Integer sunHouse = natal.get("SUN");
+        Integer sunSign = null;
+        for (PlanetaryPositionEntity p : planets) {
+          if ("SUN".equalsIgnoreCase(p.getPlanetCode())) {
+            sunSign = (int) p.getSignIndex();
+            break;
+          }
+        }
+        if (sunHouse != null && sunSign != null) {
+          Map<String, Integer> surya = NorthIndianPdfDrawer.rehouse(natal, sunHouse);
+          surya.put("ASCENDANT", 1);
+          NorthIndianPdfDrawer.draw(
+              doc,
+              writer,
+              chartFont,
+              margin,
+              doc.getPageSize().getHeight() - margin - 2 * chartSize - 70,
+              chartSize,
+              "Surya Kundli",
+              sunSign,
+              surya);
+        }
+
+        doc.add(new Paragraph(" ", normal));
+        doc.add(
+            new Paragraph(
+                "Sign numbers 1–12 = Aries–Pisces. Charts use whole-sign houses (engine default).",
+                small));
       }
 
       if (mahaPeriods != null && !mahaPeriods.isEmpty()) {
-        doc.add(new Paragraph(" ", normal));
+        doc.newPage();
         doc.add(new Paragraph("Vimshottari Mahadasha summary", heading));
         PdfPTable dasha = new PdfPTable(3);
         dasha.setWidthPercentage(100);
@@ -271,7 +356,7 @@ public class ReportPdfRenderer {
           dasha.addCell(cell(lord, normal));
           dasha.addCell(cell(INSTANT.format(row.getStartAt()), normal));
           dasha.addCell(cell(INSTANT.format(row.getEndAt()), normal));
-          if (++shown >= 9) {
+          if (++shown >= 12) {
             break;
           }
         }
@@ -308,13 +393,25 @@ public class ReportPdfRenderer {
       }
 
       doc.add(new Paragraph(" ", normal));
-      doc.add(new Paragraph("Disclaimer", bold));
+      doc.add(new Paragraph("Sugam Jyotish · Professional desk report", bold));
       doc.add(new Paragraph(DISCLAIMER, small));
       doc.close();
       return out.toByteArray();
     } catch (DocumentException ex) {
       throw new IllegalStateException("PDF generation failed", ex);
     }
+  }
+
+  private static String fmtDms(BigDecimal degInSign) {
+    if (degInSign == null) {
+      return "—";
+    }
+    double n = degInSign.doubleValue();
+    int d = (int) Math.floor(n);
+    double mf = (n - d) * 60.0;
+    int m = (int) Math.floor(mf);
+    int s = (int) Math.floor((mf - m) * 60.0);
+    return String.format("%02d:%02d:%02d", d, m, s);
   }
 
   private static String timePart(LocalTime time, boolean unknown) {
