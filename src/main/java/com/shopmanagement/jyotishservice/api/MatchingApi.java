@@ -36,11 +36,13 @@ public final class MatchingApi {
       String status,
       String statusLabel,
       boolean present,
+      boolean cancelled,
       int marsHouse,
       int marsSignIndex,
       String marsSignName,
       List<Integer> relevantHouses,
       String reasoning,
+      List<String> appliedCancellations,
       boolean cancellationsComingSoon,
       String cancellationsNote) {}
 

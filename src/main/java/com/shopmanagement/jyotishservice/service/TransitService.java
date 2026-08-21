@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.shopmanagement.jyotishservice.api.TransitApi.ComingSoonFeature;
+import com.shopmanagement.jyotishservice.api.TransitApi.SadeSatiDto;
 import com.shopmanagement.jyotishservice.api.TransitApi.TransitCatalogItem;
 import com.shopmanagement.jyotishservice.api.TransitApi.TransitPlanetDto;
 import com.shopmanagement.jyotishservice.api.TransitApi.TransitRequestBody;
@@ -23,6 +24,7 @@ import com.shopmanagement.jyotishservice.engine.model.AyanamsaMode;
 import com.shopmanagement.jyotishservice.engine.model.Planet;
 import com.shopmanagement.jyotishservice.engine.model.PlanetPosition;
 import com.shopmanagement.jyotishservice.engine.transit.NatalTransitRow;
+import com.shopmanagement.jyotishservice.engine.transit.SadeSatiCalculator;
 import com.shopmanagement.jyotishservice.engine.transit.TransitChart;
 import com.shopmanagement.jyotishservice.engine.transit.TransitPlanetPosition;
 import com.shopmanagement.jyotishservice.engine.transit.TransitRegistry;
@@ -43,7 +45,6 @@ public class TransitService {
 
   private static final List<ComingSoonFeature> COMING_SOON =
       List.of(
-          new ComingSoonFeature("SADE_SATI", "Sade Sati / Saturn transit analysis"),
           new ComingSoonFeature("ASHTAKAVARGA_TRANSIT", "Ashtakavarga-weighted Gochar"),
           new ComingSoonFeature("TRANSIT_ASPECTS", "Transit-to-natal aspects detail"));
 
@@ -168,6 +169,7 @@ public class TransitService {
             snap.getId(), tenantId)) {
       planets.add(toPlanetDto(e));
     }
+    SadeSatiDto sadeSati = computeSadeSatiDto(snap.getKundaliId(), tenantId, planets);
     return new TransitResponse(
         snap.getId(),
         snap.getKundaliId(),
@@ -182,12 +184,57 @@ public class TransitService {
         snap.getJulianDayUt(),
         snap.getNatalLagnaSignIndex(),
         planets,
+        sadeSati,
         buildCatalog(),
         COMING_SOON,
         snap.getNotes(),
         "Transit positions are astronomical overlays on the natal chart. Not predictions or timing"
-            + " advice; Sade Sati detail is Coming Soon.",
+            + " advice. Sade Sati phase is descriptive (Saturn house from natal Moon).",
         snap.getCreatedAt());
+  }
+
+  private SadeSatiDto computeSadeSatiDto(
+      Long kundaliId, String tenantId, List<TransitPlanetDto> transitPlanets) {
+    Integer moonSign = null;
+    for (PlanetaryPositionEntity r :
+        planetaryRepository.findByKundaliIdAndTenantIdOrderByPlanetCodeAsc(kundaliId, tenantId)) {
+      if ("MOON".equalsIgnoreCase(r.getPlanetCode())) {
+        moonSign = (int) r.getSignIndex();
+        break;
+      }
+    }
+    Integer saturnSign = null;
+    for (TransitPlanetDto p : transitPlanets) {
+      if ("SATURN".equalsIgnoreCase(p.planetCode())) {
+        saturnSign = p.signIndex();
+        break;
+      }
+    }
+    if (moonSign == null || saturnSign == null) {
+      return new SadeSatiDto(
+          SadeSatiCalculator.Phase.NOT_IN_SADE_SATI.code(),
+          SadeSatiCalculator.Phase.NOT_IN_SADE_SATI.label(),
+          moonSign == null ? -1 : moonSign,
+          "",
+          saturnSign == null ? -1 : saturnSign,
+          "",
+          -1,
+          -1,
+          false,
+          "Moon or Saturn missing — Sade Sati not computed.");
+    }
+    var a = SadeSatiCalculator.analyze(moonSign, saturnSign);
+    return new SadeSatiDto(
+        a.phaseCode(),
+        a.phaseLabel(),
+        a.natalMoonSignIndex(),
+        a.natalMoonSignName(),
+        a.transitSaturnSignIndex(),
+        a.transitSaturnSignName(),
+        a.signsFromMoon(),
+        a.houseFromMoon(),
+        a.inSadeSati(),
+        a.notes());
   }
 
   private List<PlanetPosition> loadNatalPlanets(Long kundaliId, String tenantId) {
@@ -280,7 +327,8 @@ public class TransitService {
   private static List<TransitCatalogItem> buildCatalog() {
     List<TransitCatalogItem> catalog = new ArrayList<>();
     for (TransitSystemCode code : TransitRegistry.all()) {
-      boolean implemented = TransitRegistry.isImplemented(code);
+      boolean implemented =
+          TransitRegistry.isImplemented(code) || code == TransitSystemCode.SADE_SATI;
       catalog.add(
           new TransitCatalogItem(
               code.code(),

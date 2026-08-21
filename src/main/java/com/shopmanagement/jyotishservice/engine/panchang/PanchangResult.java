@@ -31,6 +31,7 @@ public final class PanchangResult {
   private final LunarEvent moonset;
   private final List<PanchangFeature> catalog;
   private final List<PanchangFeature> comingSoon;
+  private final MuhuratBundle muhurat;
   private final String notes;
   private final String disclaimer;
 
@@ -56,6 +57,7 @@ public final class PanchangResult {
       LunarEvent moonset,
       List<PanchangFeature> catalog,
       List<PanchangFeature> comingSoon,
+      MuhuratBundle muhurat,
       String notes,
       String disclaimer) {
     this.engineVersion = engineVersion;
@@ -79,6 +81,7 @@ public final class PanchangResult {
     this.moonset = moonset;
     this.catalog = List.copyOf(catalog);
     this.comingSoon = List.copyOf(comingSoon);
+    this.muhurat = muhurat;
     this.notes = notes;
     this.disclaimer = disclaimer;
   }
@@ -167,6 +170,10 @@ public final class PanchangResult {
     return comingSoon;
   }
 
+  public MuhuratBundle muhurat() {
+    return muhurat;
+  }
+
   public String notes() {
     return notes;
   }
@@ -203,4 +210,15 @@ public final class PanchangResult {
 
   public record PanchangFeature(
       String code, String displayName, boolean implemented, String status) {}
+
+  /** One muhurat window (Rahu Kaal, Choghadiya slot, Hora, Abhijit, …). */
+  public record MuhuratPeriod(
+      String code, String name, Instant start, Instant end, String quality) {}
+
+  public record MuhuratBundle(List<MuhuratPeriod> periods, String notes) {
+    public MuhuratBundle {
+      periods = periods == null ? List.of() : List.copyOf(periods);
+      notes = notes == null ? "" : notes;
+    }
+  }
 }

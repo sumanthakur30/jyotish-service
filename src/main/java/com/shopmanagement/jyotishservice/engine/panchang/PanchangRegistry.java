@@ -12,8 +12,12 @@ public final class PanchangRegistry {
         feature("PANCHANG_CORE", "Tithi · Vara · Nakshatra · Yoga · Karana", true),
         feature("SUNRISE_SUNSET", "Sunrise / Sunset", true),
         feature("MOONRISE_MOONSET", "Moonrise / Moonset", false),
-        feature("CHOGHADIYA", "Choghadiya", false),
-        feature("RAHU_KAAL", "Rahu Kaal", false));
+        feature("CHOGHADIYA", "Choghadiya", true),
+        feature("RAHU_KAAL", "Rahu Kaal", true),
+        feature("YAMAGANDA", "Yamaganda", true),
+        feature("GULIKA", "Gulika Kaal", true),
+        feature("HORA", "Planetary Hora", true),
+        feature("ABHIJIT", "Abhijit Muhurat", true));
   }
 
   public static List<PanchangResult.PanchangFeature> comingSoon() {

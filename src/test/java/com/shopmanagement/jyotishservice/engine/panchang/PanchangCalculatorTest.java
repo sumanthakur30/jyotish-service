@@ -13,7 +13,7 @@ import com.shopmanagement.jyotishservice.engine.CalculationEngine;
 import com.shopmanagement.jyotishservice.engine.model.AyanamsaMode;
 
 /**
- * Known-date checks for Tithi / Nakshatra. Values are relative to Meeus + Lahiri engine (V1.6) —
+ * Known-date checks for Tithi / Nakshatra. Values are relative to Meeus + Lahiri engine (V1.7) —
  * not Swiss Ephemeris gold, but stable regression anchors.
  */
 class PanchangCalculatorTest {
@@ -32,7 +32,7 @@ class PanchangCalculatorTest {
                 "Delhi, India",
                 AyanamsaMode.LAHIRI));
 
-    assertEquals("V1.6", r.engineVersion());
+    assertEquals("V1.7", r.engineVersion());
     assertNotNull(r.tithi());
     assertNotNull(r.nakshatra());
     assertTrue(r.tithi().index() >= 0 && r.tithi().index() <= 29);
@@ -46,14 +46,16 @@ class PanchangCalculatorTest {
     assertTrue(r.sunrise().available());
     assertTrue(r.sunset().available());
     assertFalse(r.moonrise().available());
-    assertTrue(
-        r.comingSoon().stream().anyMatch(c -> "CHOGHADIYA".equals(c.code())));
-    assertTrue(r.comingSoon().stream().anyMatch(c -> "RAHU_KAAL".equals(c.code())));
+    assertNotNull(r.muhurat());
+    assertTrue(r.muhurat().periods().stream().anyMatch(p -> "RAHU_KAAL".equals(p.code())));
+    assertTrue(r.muhurat().periods().stream().anyMatch(p -> "ABHIJIT".equals(p.code())));
+    assertTrue(r.comingSoon().stream().anyMatch(c -> "MOONRISE_MOONSET".equals(c.code())));
+    assertFalse(r.comingSoon().stream().anyMatch(c -> "CHOGHADIYA".equals(c.code())));
+    assertFalse(r.comingSoon().stream().anyMatch(c -> "RAHU_KAAL".equals(c.code())));
   }
 
   @Test
   void knownDelhi2024Jan1_tithiAndNakshatraStable() {
-    // Regression anchors for Meeus+Lahiri at Delhi sunrise on 2024-01-01.
     PanchangResult r =
         engine.computePanchang(
             new PanchangRequest(
@@ -64,16 +66,13 @@ class PanchangCalculatorTest {
                 "Delhi, India",
                 AyanamsaMode.LAHIRI));
 
-    assertEquals("V1.6", r.engineVersion());
-    // Krishna/Shukla + tithi name must be consistent with index
+    assertEquals("V1.7", r.engineVersion());
     assertEquals(PanchangCatalog.tithiName(r.tithi().index()), r.tithi().name());
     assertTrue(r.tithi().progress() >= 0 && r.tithi().progress() < 1.0001);
-    // Nakshatra name matches catalog
     assertEquals(
         com.shopmanagement.jyotishservice.engine.astro.ZodiacCatalog.nakshatraName(
             r.nakshatra().index()),
         r.nakshatra().name());
-    // Fixed known indices for this engine (update only if Meeus/ayanamsa intentionally changes)
     assertEquals(19, r.tithi().index(), "expected tithi index for 2024-01-01 Delhi sunrise");
     assertEquals("Krishna", r.tithi().paksha());
     assertEquals("Panchami", r.tithi().name());
@@ -82,10 +81,24 @@ class PanchangCalculatorTest {
   }
 
   @Test
-  void catalogListsComingSoonStubs() {
-    assertTrue(PanchangRegistry.comingSoon().size() >= 3);
+  void catalogListsMuhuratReadyAndMoonComingSoon() {
+    assertEquals(1, PanchangRegistry.comingSoon().size());
     assertTrue(
         PanchangRegistry.catalog().stream()
-            .anyMatch(f -> f.implemented() && "PANCHANG_CORE".equals(f.code())));
+            .anyMatch(f -> f.implemented() && "RAHU_KAAL".equals(f.code())));
+    assertTrue(
+        PanchangRegistry.catalog().stream()
+            .anyMatch(f -> f.implemented() && "CHOGHADIYA".equals(f.code())));
+  }
+
+  @Test
+  void rahuKaalWeekdaySegments() {
+    assertEquals(8, MuhuratCalculator.rahuKaalSegment(0));
+    assertEquals(2, MuhuratCalculator.rahuKaalSegment(1));
+    assertEquals(7, MuhuratCalculator.rahuKaalSegment(2));
+    assertEquals(5, MuhuratCalculator.rahuKaalSegment(3));
+    assertEquals(6, MuhuratCalculator.rahuKaalSegment(4));
+    assertEquals(4, MuhuratCalculator.rahuKaalSegment(5));
+    assertEquals(3, MuhuratCalculator.rahuKaalSegment(6));
   }
 }

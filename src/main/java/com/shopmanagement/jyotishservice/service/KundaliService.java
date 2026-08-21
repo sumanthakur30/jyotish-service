@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.shopmanagement.jyotishservice.api.KundaliApi.AshtakavargaPlanetDto;
+import com.shopmanagement.jyotishservice.api.KundaliApi.AshtakavargaResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.ChartCatalogItem;
 import com.shopmanagement.jyotishservice.api.KundaliApi.ChartListResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.ComingSoonFeature;
@@ -31,11 +33,15 @@ import com.shopmanagement.jyotishservice.api.KundaliApi.InlineBirthRequest;
 import com.shopmanagement.jyotishservice.api.KundaliApi.KundaliResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.PlanetDto;
 import com.shopmanagement.jyotishservice.api.KundaliApi.PlanetListResponse;
+import com.shopmanagement.jyotishservice.api.KundaliApi.ShadbalaComponentDto;
+import com.shopmanagement.jyotishservice.api.KundaliApi.ShadbalaPlanetDto;
+import com.shopmanagement.jyotishservice.api.KundaliApi.ShadbalaResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.VargaChartResponse;
 import com.shopmanagement.jyotishservice.api.KundaliApi.YogaCatalogItem;
 import com.shopmanagement.jyotishservice.api.KundaliApi.YogaDto;
 import com.shopmanagement.jyotishservice.api.KundaliApi.YogaListResponse;
 import com.shopmanagement.jyotishservice.engine.CalculationEngine;
+import com.shopmanagement.jyotishservice.engine.ashtakavarga.AshtakavargaCalculator;
 import com.shopmanagement.jyotishservice.engine.ephemeris.EphemerisProvider;
 import com.shopmanagement.jyotishservice.engine.ephemeris.SwissEphemerisProvider;
 import com.shopmanagement.jyotishservice.engine.dasha.DashaLevel;
@@ -51,6 +57,7 @@ import com.shopmanagement.jyotishservice.engine.model.HouseCusp;
 import com.shopmanagement.jyotishservice.engine.model.Planet;
 import com.shopmanagement.jyotishservice.engine.model.PlanetPosition;
 import com.shopmanagement.jyotishservice.engine.model.VargaChart;
+import com.shopmanagement.jyotishservice.engine.shadbala.ShadbalaCalculator;
 import com.shopmanagement.jyotishservice.engine.varga.VargaCode;
 import com.shopmanagement.jyotishservice.engine.varga.VargaRegistry;
 import com.shopmanagement.jyotishservice.engine.yoga.YogaCategory;
@@ -59,6 +66,7 @@ import com.shopmanagement.jyotishservice.engine.yoga.YogaHit;
 import com.shopmanagement.jyotishservice.engine.yoga.YogaRegistry;
 import com.shopmanagement.jyotishservice.engine.yoga.YogaReport;
 import com.shopmanagement.jyotishservice.filter.TenantContextFilter;
+import com.shopmanagement.jyotishservice.persistence.entity.AshtakavargaResultEntity;
 import com.shopmanagement.jyotishservice.persistence.entity.BirthDetailsEntity;
 import com.shopmanagement.jyotishservice.persistence.entity.BirthLocationEntity;
 import com.shopmanagement.jyotishservice.persistence.entity.BirthProfileEntity;
@@ -69,7 +77,9 @@ import com.shopmanagement.jyotishservice.persistence.entity.DivisionalPlanetPosi
 import com.shopmanagement.jyotishservice.persistence.entity.HousePositionEntity;
 import com.shopmanagement.jyotishservice.persistence.entity.KundaliSnapshotEntity;
 import com.shopmanagement.jyotishservice.persistence.entity.PlanetaryPositionEntity;
+import com.shopmanagement.jyotishservice.persistence.entity.ShadbalaResultEntity;
 import com.shopmanagement.jyotishservice.persistence.entity.YogaResultEntity;
+import com.shopmanagement.jyotishservice.persistence.repo.AshtakavargaResultRepository;
 import com.shopmanagement.jyotishservice.persistence.repo.BirthDetailsRepository;
 import com.shopmanagement.jyotishservice.persistence.repo.BirthLocationRepository;
 import com.shopmanagement.jyotishservice.persistence.repo.BirthProfileRepository;
@@ -81,7 +91,10 @@ import com.shopmanagement.jyotishservice.persistence.repo.HousePositionRepositor
 import com.shopmanagement.jyotishservice.persistence.repo.JyotishWorkspaceRepository;
 import com.shopmanagement.jyotishservice.persistence.repo.KundaliSnapshotRepository;
 import com.shopmanagement.jyotishservice.persistence.repo.PlanetaryPositionRepository;
+import com.shopmanagement.jyotishservice.persistence.repo.ShadbalaResultRepository;
 import com.shopmanagement.jyotishservice.persistence.repo.YogaResultRepository;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class KundaliService {
@@ -89,15 +102,14 @@ public class KundaliService {
   private static final List<ComingSoonFeature> COMING_SOON =
       List.of(
           new ComingSoonFeature("COMBUST", "Combust detection with classical orbs"),
-          new ComingSoonFeature("SHADBALA", "Shadbala strength scores"),
+          new ComingSoonFeature("SHADBALA", "Full Shadbala (partial Naisargika/Dig/Sthana READY)"),
           new ComingSoonFeature("YOGA_EXT", "Additional yogas beyond Phase 5 detectors"),
           new ComingSoonFeature("VARGA_EXT", "Additional Vargas beyond D2/D3/D9/D10"),
-          new ComingSoonFeature("DASHA_EXT", "Yogini / Chara / Ashtottari dasha systems"),
-          new ComingSoonFeature("MANGLIK_CANCEL", "Manglik cancellation rules (Phase 6+)"),
-          new ComingSoonFeature("SADE_SATI", "Sade Sati / Saturn transit analysis (Phase 7+)"));
+          new ComingSoonFeature("DASHA_EXT", "Yogini / Chara / Ashtottari dasha systems"));
 
   private final CalculationEngine calculationEngine;
   private final EphemerisProvider ephemerisProvider;
+  private final ObjectMapper objectMapper;
   private final KundaliSnapshotRepository kundaliRepository;
   private final PlanetaryPositionRepository planetaryRepository;
   private final HousePositionRepository houseRepository;
@@ -106,6 +118,8 @@ public class KundaliService {
   private final DivisionalHousePositionRepository divisionalHouseRepository;
   private final DashaPeriodRepository dashaPeriodRepository;
   private final YogaResultRepository yogaResultRepository;
+  private final AshtakavargaResultRepository ashtakavargaResultRepository;
+  private final ShadbalaResultRepository shadbalaResultRepository;
   private final BirthProfileRepository profileRepository;
   private final BirthDetailsRepository detailsRepository;
   private final BirthLocationRepository locationRepository;
@@ -114,6 +128,7 @@ public class KundaliService {
   public KundaliService(
       CalculationEngine calculationEngine,
       EphemerisProvider ephemerisProvider,
+      ObjectMapper objectMapper,
       KundaliSnapshotRepository kundaliRepository,
       PlanetaryPositionRepository planetaryRepository,
       HousePositionRepository houseRepository,
@@ -122,12 +137,15 @@ public class KundaliService {
       DivisionalHousePositionRepository divisionalHouseRepository,
       DashaPeriodRepository dashaPeriodRepository,
       YogaResultRepository yogaResultRepository,
+      AshtakavargaResultRepository ashtakavargaResultRepository,
+      ShadbalaResultRepository shadbalaResultRepository,
       BirthProfileRepository profileRepository,
       BirthDetailsRepository detailsRepository,
       BirthLocationRepository locationRepository,
       JyotishWorkspaceRepository workspaceRepository) {
     this.calculationEngine = calculationEngine;
     this.ephemerisProvider = ephemerisProvider;
+    this.objectMapper = objectMapper;
     this.kundaliRepository = kundaliRepository;
     this.planetaryRepository = planetaryRepository;
     this.houseRepository = houseRepository;
@@ -136,6 +154,8 @@ public class KundaliService {
     this.divisionalHouseRepository = divisionalHouseRepository;
     this.dashaPeriodRepository = dashaPeriodRepository;
     this.yogaResultRepository = yogaResultRepository;
+    this.ashtakavargaResultRepository = ashtakavargaResultRepository;
+    this.shadbalaResultRepository = shadbalaResultRepository;
     this.profileRepository = profileRepository;
     this.detailsRepository = detailsRepository;
     this.locationRepository = locationRepository;
@@ -415,6 +435,221 @@ public class KundaliService {
         report.notes(),
         "Yoga presence flags geometric / dignity rules only. Not medical, legal, or life advice;"
             + " no guaranteed outcomes.");
+  }
+
+  /**
+   * Ashtakavarga for a kundali. Loads persisted JSON if present; otherwise computes from D1 and
+   * stores (lazy).
+   */
+  @Transactional
+  public AshtakavargaResponse getAshtakavarga(Long kundaliId) {
+    String tenantId = requireTenant();
+    KundaliSnapshotEntity snap = requireSnapshot(kundaliId, tenantId);
+    return ashtakavargaResultRepository
+        .findByKundaliIdAndTenantId(kundaliId, tenantId)
+        .filter(row -> CalculationEngine.VERSION.equals(row.getCalculationEngineVersion()))
+        .map(row -> readAshtakavarga(kundaliId, row))
+        .orElseGet(() -> computeAndPersistAshtakavarga(kundaliId, tenantId, snap));
+  }
+
+  /**
+   * Partial Shadbala for a kundali. Loads persisted JSON if present; otherwise computes and stores
+   * (lazy). Completeness is always PARTIAL.
+   */
+  @Transactional
+  public ShadbalaResponse getShadbala(Long kundaliId) {
+    String tenantId = requireTenant();
+    KundaliSnapshotEntity snap = requireSnapshot(kundaliId, tenantId);
+    return shadbalaResultRepository
+        .findByKundaliIdAndTenantId(kundaliId, tenantId)
+        .filter(row -> CalculationEngine.VERSION.equals(row.getCalculationEngineVersion()))
+        .map(row -> readShadbala(kundaliId, row))
+        .orElseGet(() -> computeAndPersistShadbala(kundaliId, tenantId, snap));
+  }
+
+  private AshtakavargaResponse computeAndPersistAshtakavarga(
+      Long kundaliId, String tenantId, KundaliSnapshotEntity snap) {
+    D1Chart d1 = rebuildD1(kundaliId, tenantId, snap);
+    AshtakavargaCalculator.AshtakavargaResult result = calculationEngine.computeAshtakavarga(d1);
+    AshtakavargaResponse response = toAshtakavargaResponse(kundaliId, result);
+    ashtakavargaResultRepository.deleteByKundaliIdAndTenantId(kundaliId, tenantId);
+    AshtakavargaResultEntity entity = new AshtakavargaResultEntity();
+    entity.setTenantId(tenantId);
+    entity.setKundaliId(kundaliId);
+    entity.setCalculationEngineVersion(CalculationEngine.VERSION);
+    entity.setResultJson(writeJson(response));
+    ashtakavargaResultRepository.save(entity);
+    return response;
+  }
+
+  private ShadbalaResponse computeAndPersistShadbala(
+      Long kundaliId, String tenantId, KundaliSnapshotEntity snap) {
+    D1Chart d1 = rebuildD1(kundaliId, tenantId, snap);
+    ShadbalaCalculator.ShadbalaReport report = calculationEngine.computeShadbala(d1);
+    ShadbalaResponse response = toShadbalaResponse(kundaliId, report);
+    shadbalaResultRepository.deleteByKundaliIdAndTenantId(kundaliId, tenantId);
+    ShadbalaResultEntity entity = new ShadbalaResultEntity();
+    entity.setTenantId(tenantId);
+    entity.setKundaliId(kundaliId);
+    entity.setCalculationEngineVersion(CalculationEngine.VERSION);
+    entity.setResultJson(writeJson(response));
+    shadbalaResultRepository.save(entity);
+    return response;
+  }
+
+  private AshtakavargaResponse readAshtakavarga(Long kundaliId, AshtakavargaResultEntity row) {
+    try {
+      return objectMapper.readValue(row.getResultJson(), AshtakavargaResponse.class);
+    } catch (Exception ex) {
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "Corrupt ashtakavarga store for kundali " + kundaliId);
+    }
+  }
+
+  private ShadbalaResponse readShadbala(Long kundaliId, ShadbalaResultEntity row) {
+    try {
+      return objectMapper.readValue(row.getResultJson(), ShadbalaResponse.class);
+    } catch (Exception ex) {
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "Corrupt shadbala store for kundali " + kundaliId);
+    }
+  }
+
+  private String writeJson(Object value) {
+    try {
+      return objectMapper.writeValueAsString(value);
+    } catch (Exception ex) {
+      throw new IllegalStateException("JSON serialize failed", ex);
+    }
+  }
+
+  private static AshtakavargaResponse toAshtakavargaResponse(
+      Long kundaliId, AshtakavargaCalculator.AshtakavargaResult result) {
+    List<AshtakavargaPlanetDto> rows = new ArrayList<>();
+    for (var e : result.bhinnashtakavarga().entrySet()) {
+      List<Integer> bindus = new ArrayList<>(12);
+      for (int v : e.getValue()) {
+        bindus.add(v);
+      }
+      rows.add(new AshtakavargaPlanetDto(e.getKey().name(), e.getKey().displayName(), bindus));
+    }
+    List<Integer> sav = new ArrayList<>(12);
+    for (int v : result.sarvashtakavarga()) {
+      sav.add(v);
+    }
+    return new AshtakavargaResponse(
+        kundaliId,
+        CalculationEngine.VERSION,
+        rows,
+        sav,
+        result.totalBindus(),
+        result.notes(),
+        "Ashtakavarga bindus are classical placement strength indicators — not predictions.");
+  }
+
+  private static ShadbalaResponse toShadbalaResponse(
+      Long kundaliId, ShadbalaCalculator.ShadbalaReport report) {
+    List<ShadbalaPlanetDto> planets = new ArrayList<>();
+    for (ShadbalaCalculator.PlanetShadbala p : report.planets()) {
+      List<ShadbalaComponentDto> comps = new ArrayList<>();
+      for (ShadbalaCalculator.ShadbalaComponent c : p.components()) {
+        comps.add(
+            new ShadbalaComponentDto(
+                c.code(),
+                c.displayName(),
+                c.status().name(),
+                c.virupas() == null ? null : bd(c.virupas(), 2),
+                c.note()));
+      }
+      planets.add(
+          new ShadbalaPlanetDto(
+              p.planet().name(),
+              p.planetName(),
+              p.signIndex(),
+              p.house(),
+              comps,
+              p.implementedComponents(),
+              p.comingSoonComponents(),
+              bd(p.partialTotalVirupas(), 2),
+              p.notes()));
+    }
+    return new ShadbalaResponse(
+        kundaliId,
+        CalculationEngine.VERSION,
+        "PARTIAL",
+        planets,
+        report.notes(),
+        "Partial Shadbala only (Naisargika + Dig + Sthana subset). Not a complete classical score.");
+  }
+
+  private D1Chart rebuildD1(Long kundaliId, String tenantId, KundaliSnapshotEntity snap) {
+    List<PlanetPosition> planets = new ArrayList<>();
+    PlanetPosition ascendant = null;
+    for (PlanetaryPositionEntity r :
+        planetaryRepository.findByKundaliIdAndTenantIdOrderByPlanetCodeAsc(kundaliId, tenantId)) {
+      Planet planet;
+      try {
+        planet = Planet.valueOf(r.getPlanetCode());
+      } catch (Exception ex) {
+        continue;
+      }
+      PlanetPosition pos =
+          new PlanetPosition(
+              planet,
+              r.getLongitudeDeg().doubleValue(),
+              r.getSignIndex(),
+              r.getSignName(),
+              r.getDegreeInSign().doubleValue(),
+              r.getHouse(),
+              r.getNakshatraIndex(),
+              r.getNakshatraName(),
+              r.getPada(),
+              r.isRetrograde(),
+              r.isCombust(),
+              r.getSpeedDegPerDay() == null ? null : r.getSpeedDegPerDay().doubleValue());
+      if (planet == Planet.ASCENDANT) {
+        ascendant = pos;
+      } else {
+        planets.add(pos);
+      }
+    }
+    if (ascendant == null) {
+      int lagna = snap.getAscendantSignIndex();
+      ascendant =
+          new PlanetPosition(
+              Planet.ASCENDANT,
+              lagna * 30.0,
+              lagna,
+              com.shopmanagement.jyotishservice.engine.astro.ZodiacCatalog.signName(lagna),
+              0,
+              1,
+              0,
+              com.shopmanagement.jyotishservice.engine.astro.ZodiacCatalog.nakshatraName(0),
+              1,
+              false,
+              false,
+              null);
+    }
+    List<HouseCusp> houses = new ArrayList<>();
+    for (HousePositionEntity h :
+        houseRepository.findByKundaliIdAndTenantIdOrderByHouseAsc(kundaliId, tenantId)) {
+      houses.add(
+          new HouseCusp(
+              h.getHouse(),
+              h.getSignIndex(),
+              h.getSignName(),
+              h.getCuspLongitudeDeg().doubleValue()));
+    }
+    return new D1Chart(
+        snap.getCalculationEngineVersion(),
+        AyanamsaMode.fromCode(snap.getAyanamsaCode()),
+        snap.getAyanamsaDeg().doubleValue(),
+        snap.getJulianDayUt().doubleValue(),
+        planets,
+        houses,
+        ascendant,
+        snap.getHouseSystem(),
+        snap.getNotes());
   }
 
   private YogaReport computeAndPersistYogas(

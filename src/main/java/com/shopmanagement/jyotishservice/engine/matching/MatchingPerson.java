@@ -9,7 +9,8 @@ import com.shopmanagement.jyotishservice.engine.model.Planet;
 import com.shopmanagement.jyotishservice.engine.model.PlanetPosition;
 
 /**
- * Chart inputs needed for Ashta Koota + Manglik. Built from D1 Moon / Mars / Lagna (whole-sign).
+ * Chart inputs needed for Ashta Koota + Manglik. Built from D1 Moon / Mars / Jupiter / Lagna
+ * (whole-sign).
  */
 public final class MatchingPerson {
 
@@ -21,6 +22,7 @@ public final class MatchingPerson {
   private final String moonNakshatraName;
   private final int marsHouse;
   private final int marsSignIndex;
+  private final int jupiterSignIndex;
   private final int lagnaSignIndex;
 
   public MatchingPerson(
@@ -32,6 +34,7 @@ public final class MatchingPerson {
       String moonNakshatraName,
       int marsHouse,
       int marsSignIndex,
+      int jupiterSignIndex,
       int lagnaSignIndex) {
     this.profileId = profileId;
     this.displayName = displayName;
@@ -41,6 +44,7 @@ public final class MatchingPerson {
     this.moonNakshatraName = moonNakshatraName;
     this.marsHouse = marsHouse;
     this.marsSignIndex = Math.floorMod(marsSignIndex, 12);
+    this.jupiterSignIndex = Math.floorMod(jupiterSignIndex, 12);
     this.lagnaSignIndex = Math.floorMod(lagnaSignIndex, 12);
   }
 
@@ -62,6 +66,12 @@ public final class MatchingPerson {
             .filter(p -> p.planet() == Planet.MARS)
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Mars position required for matching"));
+    int jupiterSign =
+        planets.stream()
+            .filter(p -> p.planet() == Planet.JUPITER)
+            .map(PlanetPosition::signIndex)
+            .findFirst()
+            .orElse(0);
     return new MatchingPerson(
         profileId,
         displayName,
@@ -71,12 +81,23 @@ public final class MatchingPerson {
         moon.nakshatraName(),
         mars.house(),
         mars.signIndex(),
+        jupiterSign,
         lagnaSignIndex);
   }
 
-  /** Test helper: build from Moon nakshatra + sign and Mars house only. */
+  /** Test helper: Moon nakshatra + sign and Mars house; Mars/Jupiter signs default to moon sign. */
   public static MatchingPerson forTest(
       String name, int moonSignIndex, int moonNakshatraIndex, int marsHouse) {
+    return forTest(name, moonSignIndex, moonNakshatraIndex, marsHouse, moonSignIndex, moonSignIndex);
+  }
+
+  public static MatchingPerson forTest(
+      String name,
+      int moonSignIndex,
+      int moonNakshatraIndex,
+      int marsHouse,
+      int marsSignIndex,
+      int jupiterSignIndex) {
     return new MatchingPerson(
         null,
         name,
@@ -85,7 +106,8 @@ public final class MatchingPerson {
         moonNakshatraIndex,
         ZodiacCatalog.nakshatraName(moonNakshatraIndex),
         marsHouse,
-        moonSignIndex,
+        marsSignIndex,
+        jupiterSignIndex,
         0);
   }
 
@@ -119,6 +141,10 @@ public final class MatchingPerson {
 
   public int marsSignIndex() {
     return marsSignIndex;
+  }
+
+  public int jupiterSignIndex() {
+    return jupiterSignIndex;
   }
 
   public int lagnaSignIndex() {

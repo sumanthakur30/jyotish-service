@@ -177,4 +177,39 @@ public final class KundaliApi {
       List<YogaCatalogItem> catalog,
       String notes,
       String disclaimer) {}
+
+  /** GET .../ashtakavarga */
+  public record AshtakavargaPlanetDto(String planetCode, String planetName, List<Integer> bindus) {}
+
+  public record AshtakavargaResponse(
+      Long kundaliId,
+      String calculationEngineVersion,
+      List<AshtakavargaPlanetDto> bhinnashtakavarga,
+      List<Integer> sarvashtakavarga,
+      int totalBindus,
+      String notes,
+      String disclaimer) {}
+
+  /** GET .../shadbala — PARTIAL scores only. */
+  public record ShadbalaComponentDto(
+      String code, String displayName, String status, BigDecimal virupas, String note) {}
+
+  public record ShadbalaPlanetDto(
+      String planetCode,
+      String planetName,
+      int signIndex,
+      int house,
+      List<ShadbalaComponentDto> components,
+      List<String> implementedComponents,
+      List<String> comingSoonComponents,
+      BigDecimal partialTotalVirupas,
+      String notes) {}
+
+  public record ShadbalaResponse(
+      Long kundaliId,
+      String calculationEngineVersion,
+      String completeness,
+      List<ShadbalaPlanetDto> planets,
+      String notes,
+      String disclaimer) {}
 }

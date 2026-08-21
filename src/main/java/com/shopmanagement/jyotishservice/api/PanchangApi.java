@@ -43,6 +43,11 @@ public final class PanchangApi {
 
   public record ComingSoonFeature(String code, String label) {}
 
+  public record MuhuratPeriodDto(
+      String code, String name, Instant start, Instant end, String quality) {}
+
+  public record MuhuratBundleDto(List<MuhuratPeriodDto> periods, String notes) {}
+
   public record PanchangResponse(
       LocalDate date,
       String timeZone,
@@ -63,6 +68,7 @@ public final class PanchangApi {
       SolarEventDto sunset,
       LunarEventDto moonrise,
       LunarEventDto moonset,
+      MuhuratBundleDto muhurat,
       List<CatalogItem> catalog,
       List<ComingSoonFeature> comingSoon,
       String notes,

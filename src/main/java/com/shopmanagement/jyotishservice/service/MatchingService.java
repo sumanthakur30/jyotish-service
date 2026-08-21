@@ -20,6 +20,7 @@ import com.shopmanagement.jyotishservice.api.MatchingApi.MatchingCatalogItem;
 import com.shopmanagement.jyotishservice.api.MatchingApi.MatchingResponse;
 import com.shopmanagement.jyotishservice.api.MatchingApi.PersonSummaryDto;
 import com.shopmanagement.jyotishservice.engine.CalculationEngine;
+import com.shopmanagement.jyotishservice.engine.matching.CancellationRule;
 import com.shopmanagement.jyotishservice.engine.matching.KootaScore;
 import com.shopmanagement.jyotishservice.engine.matching.ManglikAssessment;
 import com.shopmanagement.jyotishservice.engine.matching.MatchingPerson;
@@ -265,21 +266,27 @@ public class MatchingService {
         a.status().code(),
         a.status().label(),
         a.present(),
+        a.cancelled(),
         a.marsHouse(),
         a.marsSignIndex(),
         a.marsSignName(),
         a.relevantHouses(),
         a.reasoning(),
+        a.appliedCancellations().stream().map(CancellationRule::code).toList(),
         a.cancellationsComingSoon(),
         a.cancellationsNote());
   }
 
   private static ManglikDto manglikFromSession(String status, short marsHouse, String name) {
     boolean present = "PRESENT".equalsIgnoreCase(status);
+    boolean cancelled = "CANCELLED".equalsIgnoreCase(status);
+    String label =
+        cancelled ? "Cancelled" : present ? "Present" : "Absent";
     return new ManglikDto(
         status,
-        present ? "Present" : "Absent",
+        label,
         present,
+        cancelled,
         marsHouse,
         -1,
         "",
@@ -288,9 +295,10 @@ public class MatchingService {
             + marsHouse
             + " for "
             + name
-            + " (stored session). Cancellation rules: Coming Soon.",
-        true,
-        "Manglik cancellation / exception rules are Coming Soon and are not applied here.");
+            + " (stored session). Re-open match for full cancellation detail.",
+        java.util.List.of(),
+        false,
+        "Cancellation rules applied at match time; detail stored in status only for this session.");
   }
 
   private PersonSummaryDto enrichPerson(PersonSummaryDto base, Long kundaliId, String tenantId) {

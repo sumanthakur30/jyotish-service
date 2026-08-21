@@ -24,6 +24,8 @@ Sugam Jyotish bounded context — Vedic astrology calculation + Kundali SaaS.
 | `GET /api/v1/jyotish/kundali/{id}/dasha` | Default Vimshottari timeline + current |
 | `GET /api/v1/jyotish/kundali/{id}/dasha/{system}` | Named system (`VIMSHOTTARI`; others Coming Soon) |
 | `GET /api/v1/jyotish/kundali/{id}/yogas` | Yoga results (+ optional `?category=`) |
+| `GET /api/v1/jyotish/kundali/{id}/ashtakavarga` | Bhinnashtakavarga + Sarvashtakavarga (lazy) |
+| `GET /api/v1/jyotish/kundali/{id}/shadbala` | Partial Shadbala (Naisargika/Dig/Sthana subset) |
 | `POST /api/v1/jyotish/matching` | Ashta Koota + Manglik for two birth profiles |
 | `GET /api/v1/jyotish/matching/{id}` | Stored matching session |
 | `GET /api/v1/jyotish/kundali/{id}/transit?date=` | Gochar for date (default: now / today) |
@@ -48,14 +50,18 @@ Flyway **V7**: `transit_snapshot`, `transit_planet_position`.
 Flyway **V8**: `kundali_report` (metadata; PDF files under `./data/reports`).  
 Flyway **V9**: `jyotish_client`, `jyotish_client_birth_profile`, `jyotish_appointment`.  
 Flyway **V10**: `jyotish_ai_ask` (AI ask audit/meter).  
-Panchang MVP is **compute-only** (no Flyway V11 cache yet).
+Flyway **V11**: `ashtakavarga_result`, `shadbala_result` (lazy JSON).  
+Panchang MVP is **compute-only** (no cache table).
 
-### Engine V1.6 + Panchang (+ Phase 8–10 + Swiss ephemeris SPI)
+### Engine V1.7 — industry parity (+ Phase 8–10 + Swiss ephemeris SPI)
 
 - Sidereal Vedic D1 (Rashi), default Lahiri ayanamsa
-- **Ephemeris:** `jyotish.ephemeris.provider=MEEUS` (default) or `SWISS` (optional Thomas Mack pure-Java JAR — see `third_party/swiss-ephemeris/README.md`)
+- **Ephemeris:** `jyotish.ephemeris.provider=MEEUS` (default) or `SWISS` — see **[docs/ACCURACY-PACK.md](docs/ACCURACY-PACK.md)** for gold tolerances and Swiss enablement
 - **Vargas / Dasha / Yoga / Matching / Transit** frameworks as in Phase 3–7
-- **Panchang:** Tithi, Vara, Nakshatra, Yoga, Karana at sunrise; sunrise/sunset; moonrise/moonset + Choghadiya + Rahu Kaal = Coming Soon
+- **Ashtakavarga** (classical BAV) + **partial Shadbala** (honest COMING_SOON for unfinished components)
+- **Panchang:** Tithi–Karana + sunrise/sunset + Rahu Kaal / Yamaganda / Gulika / Choghadiya / Hora / Abhijit; moonrise/moonset Coming Soon
+- **Manglik cancellations** — see [docs/MANGLIK-CANCELLATIONS.md](docs/MANGLIK-CANCELLATIONS.md)
+- **Sade Sati** phase on transit responses (Saturn house from natal Moon)
 - **Reports:** OpenPDF from stored snapshots — no recalculation
 - **CRM:** clients + appointments (tenant-isolated; not hospital appointment-service)
 - **AI:** `LlmProvider` HEURISTIC default (optional HTTP); context from verified snapshot only — never invents ephemeris
@@ -105,7 +111,10 @@ Default provider: `jyotish.ai.provider=HEURISTIC` (no remote). Optional HTTP: se
 
 ## Swiss Ephemeris (optional accuracy)
 
-Default stays **MEEUS**. To enable Swiss (Thomas Mack pure-Java JAR):
+Default stays **MEEUS**. Accuracy pack, gold chart, and tolerances:
+**[docs/ACCURACY-PACK.md](docs/ACCURACY-PACK.md)**.
+
+To enable Swiss (Thomas Mack pure-Java JAR):
 
 ```powershell
 pwsh scripts/download-swiss-jar.ps1

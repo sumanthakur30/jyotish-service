@@ -9,6 +9,8 @@ import com.shopmanagement.jyotishservice.api.PanchangApi.CatalogItem;
 import com.shopmanagement.jyotishservice.api.PanchangApi.ComingSoonFeature;
 import com.shopmanagement.jyotishservice.api.PanchangApi.LimbDto;
 import com.shopmanagement.jyotishservice.api.PanchangApi.LunarEventDto;
+import com.shopmanagement.jyotishservice.api.PanchangApi.MuhuratBundleDto;
+import com.shopmanagement.jyotishservice.api.PanchangApi.MuhuratPeriodDto;
 import com.shopmanagement.jyotishservice.api.PanchangApi.PanchangRequestBody;
 import com.shopmanagement.jyotishservice.api.PanchangApi.PanchangResponse;
 import com.shopmanagement.jyotishservice.api.PanchangApi.SolarEventDto;
@@ -79,6 +81,7 @@ public class PanchangService {
         solar(r.sunset()),
         lunar(r.moonrise()),
         lunar(r.moonset()),
+        muhurat(r.muhurat()),
         r.catalog().stream()
             .map(c -> new CatalogItem(c.code(), c.displayName(), c.implemented(), c.status()))
             .toList(),
@@ -87,6 +90,20 @@ public class PanchangService {
             .toList(),
         r.notes(),
         r.disclaimer());
+  }
+
+  private static MuhuratBundleDto muhurat(PanchangResult.MuhuratBundle b) {
+    if (b == null) {
+      return new MuhuratBundleDto(java.util.List.of(), "");
+    }
+    return new MuhuratBundleDto(
+        b.periods().stream()
+            .map(
+                p ->
+                    new MuhuratPeriodDto(
+                        p.code(), p.name(), p.start(), p.end(), p.quality()))
+            .toList(),
+        b.notes());
   }
 
   private static LimbDto limb(PanchangResult.Limb limb) {

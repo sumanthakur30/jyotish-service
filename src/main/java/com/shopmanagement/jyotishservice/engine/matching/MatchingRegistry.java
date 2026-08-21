@@ -62,9 +62,9 @@ public final class MatchingRegistry {
         new MatchingReportBuilder()
             .persons(personA, personB)
             .notes(
-                "Ashta Koota + Manglik V1.4 from D1 Moon/Mars whole-sign positions. Person A is the"
-                    + " classical groom-side orientation for directional kootas; Person B is the"
-                    + " bride-side. Manglik cancellations are Coming Soon.");
+                "Ashta Koota + Manglik V1.7 from D1 Moon/Mars/Jupiter whole-sign positions. Person A"
+                    + " is the classical groom-side orientation for directional kootas; Person B is"
+                    + " the bride-side. Manglik cancellations applied per docs/MANGLIK-CANCELLATIONS.md.");
     for (MatchingSystemCode code : MatchingSystemCode.values()) {
       MatchingCalculator calc = CALCULATORS.get(code);
       if (calc != null) {

@@ -1,9 +1,10 @@
 package com.shopmanagement.jyotishservice.engine.matching;
 
-/** Manglik presence from Mars house placement (cancellations not applied in V1.4). */
+/** Manglik presence from Mars house placement; CANCELLED when exception rules apply. */
 public enum ManglikStatus {
   PRESENT("PRESENT", "Present"),
-  ABSENT("ABSENT", "Absent");
+  ABSENT("ABSENT", "Absent"),
+  CANCELLED("CANCELLED", "Cancelled");
 
   private final String code;
   private final String label;

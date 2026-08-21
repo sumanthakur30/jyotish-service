@@ -21,8 +21,8 @@ class CalculationEngineTest {
   private final CalculationEngine engine = new CalculationEngine();
 
   @Test
-  void versionIsV1_6() {
-    assertEquals("V1.6", engine.version());
+  void versionIsV1_7() {
+    assertEquals("V1.7", engine.version());
   }
 
   @Test
@@ -37,7 +37,7 @@ class CalculationEngineTest {
             "Delhi, India");
     D1Chart chart = engine.computeD1(new ChartRequest(birth, AyanamsaMode.LAHIRI, false));
 
-    assertEquals("V1.6", chart.engineVersion());
+    assertEquals("V1.7", chart.engineVersion());
     assertEquals(9, chart.planets().size());
     assertEquals(12, chart.houses().size());
     assertEquals(Planet.ASCENDANT, chart.ascendant().planet());
@@ -65,6 +65,6 @@ class CalculationEngineTest {
     assertEquals(9, d9.planets().size());
     assertEquals(12, d9.houses().size());
     assertEquals(1, d9.ascendant().house());
-    assertEquals("V1.6", d9.engineVersion());
+    assertEquals("V1.7", d9.engineVersion());
   }
 }

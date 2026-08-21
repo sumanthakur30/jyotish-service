@@ -47,7 +47,7 @@ class GocharTransitCalculatorTest {
 
     TransitChart chart = engine.computeTransit(TransitSystemCode.GOCHAR, request, d1.planets());
 
-    assertEquals("V1.6", chart.engineVersion());
+    assertEquals("V1.7", chart.engineVersion());
     assertEquals(TransitSystemCode.GOCHAR, chart.system());
     assertEquals(9, chart.rows().size());
     assertEquals(d1.ascendant().signIndex(), chart.natalLagnaSignIndex());
@@ -64,10 +64,20 @@ class GocharTransitCalculatorTest {
     assertEquals(
         TransitComparer.houseChanged(saturn.natalHouse(), saturn.transit().house()),
         saturn.houseChanged());
+
+    int moonSign =
+        d1.planets().stream()
+            .filter(p -> p.planet() == Planet.MOON)
+            .findFirst()
+            .orElseThrow()
+            .signIndex();
+    var sade = SadeSatiCalculator.analyze(moonSign, saturn.transit().signIndex());
+    assertTrue(sade.phase() != null);
   }
 
   @Test
-  void sadeSatiIsComingSoon() {
+  void sadeSatiHasNoDedicatedTransitCalculatorYet() {
+    // Sade Sati is attached on Gochar API responses via SadeSatiCalculator, not TransitRegistry.
     assertFalse(TransitRegistry.isImplemented(TransitSystemCode.SADE_SATI));
     assertThrows(
         IllegalArgumentException.class,

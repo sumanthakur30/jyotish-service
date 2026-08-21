@@ -132,13 +132,22 @@ public final class PanchangCalculator {
     List<PanchangResult.PanchangFeature> catalog = PanchangRegistry.catalog();
     List<PanchangResult.PanchangFeature> comingSoon = PanchangRegistry.comingSoon();
 
+    boolean solarOk = solar.sunrise().available() && solar.sunset().available();
+    PanchangResult.MuhuratBundle muhurat =
+        MuhuratCalculator.compute(
+            solar.sunrise().instant(),
+            solar.sunset().instant(),
+            zone,
+            dow,
+            solarOk);
+
     String notes =
         "Panchang limbs at sunrise (or local noon if polar); "
             + ephemeris.code()
             + " tropical + "
             + request.ayanamsa().name()
-            + " ayanamsa. Compute-only MVP (no cache table). Moonrise/moonset, Choghadiya, and Rahu"
-            + " Kaal are Coming Soon.";
+            + " ayanamsa. Compute-only (no cache table). Muhurat: Rahu Kaal, Yamaganda, Gulika,"
+            + " Choghadiya, Hora, Abhijit READY. Moonrise/moonset Coming Soon.";
 
     return new PanchangResult(
         engineVersion,
@@ -162,6 +171,7 @@ public final class PanchangCalculator {
         PanchangResult.LunarEvent.comingSoon(),
         catalog,
         comingSoon,
+        muhurat,
         notes,
         "Traditional calendar indicators for the selected place and date — not predictions.");
   }

@@ -54,9 +54,22 @@ public final class TransitApi {
       BigDecimal julianDayUt,
       int natalLagnaSignIndex,
       List<TransitPlanetDto> planets,
+      SadeSatiDto sadeSati,
       List<TransitCatalogItem> catalog,
       List<ComingSoonFeature> comingSoon,
       String notes,
       String disclaimer,
       Instant createdAt) {}
+
+  public record SadeSatiDto(
+      String phaseCode,
+      String phaseLabel,
+      int natalMoonSignIndex,
+      String natalMoonSignName,
+      int transitSaturnSignIndex,
+      String transitSaturnSignName,
+      int signsFromMoon,
+      int houseFromMoon,
+      boolean inSadeSati,
+      String notes) {}
 }
