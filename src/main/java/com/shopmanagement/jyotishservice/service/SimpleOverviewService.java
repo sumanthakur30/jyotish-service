@@ -63,7 +63,7 @@ public class SimpleOverviewService {
     this.dashaPeriodRepository = dashaPeriodRepository;
   }
 
-  @Transactional(readOnly = true)
+  @Transactional
   public SimpleOverviewResponse overview(Long kundaliId) {
     KundaliResponse kundali = kundaliService.get(kundaliId);
     DashboardResponse life = lifeAnalysisService.dashboard(kundaliId);
