@@ -11,5 +11,8 @@
 
 # Optional Swiss Ephemeris binaries (download locally — see third_party/swiss-ephemeris/README.md)
 /third_party/swiss-ephemeris/*.jar
-/third_party/swiss-ephemeris/ephe/
+/third_party/swiss-ephemeris/ephe/**
+!/third_party/swiss-ephemeris/ephe/.gitkeep
+!/third_party/swiss-ephemeris/ephe/README.md
 /third_party/swiss-ephemeris/probe/
+*.se1

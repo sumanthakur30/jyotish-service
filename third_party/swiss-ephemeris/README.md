@@ -19,18 +19,24 @@ Invoke-WebRequest `
   -OutFile "third_party\swiss-ephemeris\swisseph-2.01.00-02.jar"
 ```
 
-Optional full SE data files (higher precision than built-in Moshier): download from
-[Astrodienst Swiss Ephemeris](https://www.astro.com/swisseph/) into e.g.
-`third_party/swiss-ephemeris/ephe/`.
+Optional full SE data files (higher precision than built-in Moshier):
+
+```powershell
+.\scripts\download-swiss-ephe.ps1
+# or: bash scripts/download-swiss-ephe.sh
+```
+
+Files land in `third_party/swiss-ephemeris/ephe/` (**gitignored** — do not commit `.se1`).
+License decision matrix: [`LICENSE-DECISION.md`](./LICENSE-DECISION.md).
 
 ## Enable
 
 ```properties
 jyotish.ephemeris.provider=SWISS
 jyotish.ephemeris.swiss-jar-path=third_party/swiss-ephemeris/swisseph-2.01.00-02.jar
-# Optional SE files:
-# jyotish.ephemeris.swiss-ephe-path=third_party/swiss-ephemeris/ephe
-# jyotish.ephemeris.swiss-use-files=true
+# Optional SE files (this branch):
+jyotish.ephemeris.swiss-ephe-path=third_party/swiss-ephemeris/ephe
+jyotish.ephemeris.swiss-use-files=true
 ```
 
 Env equivalents: `JYOTISH_EPHEMERIS_PROVIDER`, `JYOTISH_SWISS_JAR_PATH`,
@@ -39,21 +45,28 @@ Env equivalents: `JYOTISH_EPHEMERIS_PROVIDER`, `JYOTISH_SWISS_JAR_PATH`,
 Without the JAR (or with a bad path), startup with `provider=SWISS` fails with a clear
 `EphemerisUnavailableException` — Meeus is never silently substituted.
 
+When `swiss-use-files=true` but the directory is missing/empty, startup fails with a clear
+path error (configure Moshier by leaving `swiss-use-files=false`).
+
 ## Docker sketch
 
 ```dockerfile
 # After copying the app JAR:
 COPY third_party/swiss-ephemeris/swisseph-2.01.00-02.jar /opt/swiss/swisseph.jar
-# optional: COPY ephe/ /opt/swiss/ephe/
+# Prefer volume-mounting ephe/ at runtime (do not bake large .se1 into the image):
+#   -v ./ephe:/opt/swiss/ephe:ro
 ENV JYOTISH_EPHEMERIS_PROVIDER=SWISS
 ENV JYOTISH_SWISS_JAR_PATH=/opt/swiss/swisseph.jar
+ENV JYOTISH_SWISS_EPHE_PATH=/opt/swiss/ephe
+ENV JYOTISH_SWISS_USE_FILES=true
 ```
 
-No native library packaging in this slice — pure-Java JAR only.
+No native library packaging — pure-Java JAR only. Default remains **MEEUS**.
 
 ## License
 
 Swiss Ephemeris Free Edition is **AGPL**. Commercial / closed-source SaaS may need Astrodienst’s
-dual license. Review https://www.astro.com/swisseph/swephinfo_e.htm before production enablement.
+dual license. See [`LICENSE-DECISION.md`](./LICENSE-DECISION.md) and
+https://www.astro.com/swisseph/swephinfo_e.htm before production enablement.
 
-The JAR under this folder is **gitignored** — download locally; do not commit binaries.
+The JAR and `.se1` files under this folder are **gitignored** — download locally; do not commit binaries.

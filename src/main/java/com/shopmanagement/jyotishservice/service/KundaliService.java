@@ -36,6 +36,8 @@ import com.shopmanagement.jyotishservice.api.KundaliApi.YogaCatalogItem;
 import com.shopmanagement.jyotishservice.api.KundaliApi.YogaDto;
 import com.shopmanagement.jyotishservice.api.KundaliApi.YogaListResponse;
 import com.shopmanagement.jyotishservice.engine.CalculationEngine;
+import com.shopmanagement.jyotishservice.engine.ephemeris.EphemerisProvider;
+import com.shopmanagement.jyotishservice.engine.ephemeris.SwissEphemerisProvider;
 import com.shopmanagement.jyotishservice.engine.dasha.DashaLevel;
 import com.shopmanagement.jyotishservice.engine.dasha.DashaPeriod;
 import com.shopmanagement.jyotishservice.engine.dasha.DashaRegistry;
@@ -95,6 +97,7 @@ public class KundaliService {
           new ComingSoonFeature("SADE_SATI", "Sade Sati / Saturn transit analysis (Phase 7+)"));
 
   private final CalculationEngine calculationEngine;
+  private final EphemerisProvider ephemerisProvider;
   private final KundaliSnapshotRepository kundaliRepository;
   private final PlanetaryPositionRepository planetaryRepository;
   private final HousePositionRepository houseRepository;
@@ -110,6 +113,7 @@ public class KundaliService {
 
   public KundaliService(
       CalculationEngine calculationEngine,
+      EphemerisProvider ephemerisProvider,
       KundaliSnapshotRepository kundaliRepository,
       PlanetaryPositionRepository planetaryRepository,
       HousePositionRepository houseRepository,
@@ -123,6 +127,7 @@ public class KundaliService {
       BirthLocationRepository locationRepository,
       JyotishWorkspaceRepository workspaceRepository) {
     this.calculationEngine = calculationEngine;
+    this.ephemerisProvider = ephemerisProvider;
     this.kundaliRepository = kundaliRepository;
     this.planetaryRepository = planetaryRepository;
     this.houseRepository = houseRepository;
@@ -192,12 +197,7 @@ public class KundaliService {
     snap.setAscendantLongitude(bd(chart.ascendant().longitudeDeg(), 6));
     snap.setAscendantSignIndex((short) chart.ascendant().signIndex());
     snap.setNotes(chart.notes());
-    snap.setInputJson(
-        "{\"source\":\""
-            + (resolved.profileId() != null ? "profile" : "inline")
-            + "\",\"ayanamsa\":\""
-            + ayanamsa.name()
-            + "\"}");
+    snap.setInputJson(buildSnapshotInputJson(resolved.profileId() != null, ayanamsa));
     snap = kundaliRepository.save(snap);
 
     List<PlanetDto> planetDtos = new ArrayList<>();
@@ -1207,6 +1207,20 @@ public class KundaliService {
     } catch (Exception ex) {
       return code;
     }
+  }
+
+  private String buildSnapshotInputJson(boolean fromProfile, AyanamsaMode ayanamsa) {
+    boolean swissFiles =
+        ephemerisProvider instanceof SwissEphemerisProvider swiss && swiss.usingFiles();
+    return "{\"source\":\""
+        + (fromProfile ? "profile" : "inline")
+        + "\",\"ayanamsa\":\""
+        + ayanamsa.name()
+        + "\",\"ephemerisProvider\":\""
+        + ephemerisProvider.code()
+        + "\",\"swissUsingFiles\":"
+        + swissFiles
+        + "}";
   }
 
   private static BigDecimal bd(double v, int scale) {

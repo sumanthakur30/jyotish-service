@@ -103,16 +103,24 @@ Default provider: `jyotish.ai.provider=HEURISTIC` (no remote). Optional HTTP: se
 
 Default stays **MEEUS**. To enable Swiss (Thomas Mack pure-Java JAR):
 
-1. Download JAR — see `third_party/swiss-ephemeris/README.md`
-2. Set:
+```powershell
+pwsh scripts/download-swiss-jar.ps1
+# Optional full SE .se1 files (large; gitignored):
+pwsh scripts/download-swiss-ephe.ps1
+```
 
 ```properties
 jyotish.ephemeris.provider=SWISS
 jyotish.ephemeris.swiss-jar-path=third_party/swiss-ephemeris/swisseph-2.01.00-02.jar
+jyotish.ephemeris.swiss-ephe-path=third_party/swiss-ephemeris/ephe
+jyotish.ephemeris.swiss-use-files=true
 ```
 
-Or env: `JYOTISH_EPHEMERIS_PROVIDER=SWISS` + `JYOTISH_SWISS_JAR_PATH=...`.  
-Status endpoint reports active provider. AGPL license applies to the Swiss JAR — review before production.
+Or env: `JYOTISH_EPHEMERIS_PROVIDER=SWISS` + `JYOTISH_SWISS_JAR_PATH=...` +
+`JYOTISH_SWISS_EPHE_PATH=...` + `JYOTISH_SWISS_USE_FILES=true`.
+
+Status endpoint reports active provider. Kundali `input_json` stamps `ephemerisProvider` /
+`swissUsingFiles`. AGPL vs commercial: see `third_party/swiss-ephemeris/LICENSE-DECISION.md`.
 
 ## Reports (example)
 
