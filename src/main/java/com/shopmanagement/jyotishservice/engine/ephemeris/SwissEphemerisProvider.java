@@ -54,6 +54,9 @@ public final class SwissEphemerisProvider implements EphemerisProvider {
       case MARS -> body(SwissEphemerisSupport.SE_MARS, julianDayUt);
       case JUPITER -> body(SwissEphemerisSupport.SE_JUPITER, julianDayUt);
       case SATURN -> body(SwissEphemerisSupport.SE_SATURN, julianDayUt);
+      case URANUS -> body(SwissEphemerisSupport.SE_URANUS, julianDayUt);
+      case NEPTUNE -> body(SwissEphemerisSupport.SE_NEPTUNE, julianDayUt);
+      case PLUTO -> body(SwissEphemerisSupport.SE_PLUTO, julianDayUt);
       case RAHU -> {
         int node =
             handle.trueNode()
@@ -70,7 +73,22 @@ public final class SwissEphemerisProvider implements EphemerisProvider {
   }
 
   @Override
+  public boolean supportsOuterPlanets() {
+    return true;
+  }
+
+  @Override
   public double tropicalAscendant(double julianDayUt, double latitudeDeg, double longitudeDeg) {
+    return ascmc(julianDayUt, latitudeDeg, longitudeDeg)[0];
+  }
+
+  @Override
+  public double tropicalMidheaven(double julianDayUt, double latitudeDeg, double longitudeDeg) {
+    return ascmc(julianDayUt, latitudeDeg, longitudeDeg)[1];
+  }
+
+  /** {@code [ASC, MC]} via swe_houses Placidus angles (ASC/MC independent of house system). */
+  private double[] ascmc(double julianDayUt, double latitudeDeg, double longitudeDeg) {
     double[] cusps = new double[13];
     double[] ascmc = new double[10];
     synchronized (handle.swissEph()) {
@@ -92,7 +110,7 @@ public final class SwissEphemerisProvider implements EphemerisProvider {
           throw new EphemerisUnavailableException(
               "Swiss Ephemeris swe_houses failed (rc=" + rc + ")");
         }
-        return AstroMath.norm360(ascmc[0]);
+        return new double[] {AstroMath.norm360(ascmc[0]), AstroMath.norm360(ascmc[1])};
       } catch (InvocationTargetException ex) {
         throw new EphemerisUnavailableException(
             "Swiss Ephemeris swe_houses error: " + ex.getTargetException().getMessage(),

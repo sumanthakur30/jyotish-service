@@ -1,6 +1,6 @@
 package com.shopmanagement.jyotishservice.engine.model;
 
-/** Graha set for D1 (Rashi) V1.0. */
+/** Graha set for D1 (Rashi). Classical nine + optional outer planets (Spashta only). */
 public enum Planet {
   SUN("Sun"),
   MOON("Moon"),
@@ -11,6 +11,10 @@ public enum Planet {
   SATURN("Saturn"),
   RAHU("Rahu"),
   KETU("Ketu"),
+  /** Western outer — Spashta only; never used in classical yogas. */
+  URANUS("Uranus"),
+  NEPTUNE("Neptune"),
+  PLUTO("Pluto"),
   ASCENDANT("Ascendant");
 
   private final String displayName;
@@ -25,5 +29,14 @@ public enum Planet {
 
   public boolean isNode() {
     return this == RAHU || this == KETU;
+  }
+
+  /** Uranus / Neptune / Pluto — not part of classical nine-graha rules. */
+  public boolean isOuter() {
+    return this == URANUS || this == NEPTUNE || this == PLUTO;
+  }
+
+  public boolean isClassicalGraha() {
+    return !isOuter() && this != ASCENDANT;
   }
 }

@@ -44,12 +44,28 @@ public final class MeeusEphemeris implements EphemerisProvider {
         double speed = AstroMath.norm360(ketu2 - ketu + 180.0) - 180.0;
         yield new TropicalBody(ketu, speed);
       }
+      case URANUS, NEPTUNE, PLUTO ->
+          throw new UnsupportedOperationException(
+              planet.name()
+                  + " Coming Soon under Meeus — enable jyotish.ephemeris.provider=SWISS");
       case ASCENDANT -> throw new IllegalArgumentException("Use tropicalAscendant() for Lagna");
     };
   }
 
   @Override
   public double tropicalAscendant(double julianDayUt, double latitudeDeg, double longitudeDeg) {
+    return angles(julianDayUt, latitudeDeg, longitudeDeg)[0];
+  }
+
+  @Override
+  public double tropicalMidheaven(double julianDayUt, double latitudeDeg, double longitudeDeg) {
+    return angles(julianDayUt, latitudeDeg, longitudeDeg)[1];
+  }
+
+  /**
+   * @return {@code [ascendant, midheaven]} tropical ecliptic longitudes
+   */
+  private double[] angles(double julianDayUt, double latitudeDeg, double longitudeDeg) {
     double t = AstroMath.centuriesJ2000(julianDayUt);
     // Mean obliquity of the ecliptic (Meeus)
     double eps =
@@ -68,8 +84,13 @@ public final class MeeusEphemeris implements EphemerisProvider {
     double y = AstroMath.cosd(ramc);
     double x =
         -(AstroMath.sind(ramc) * AstroMath.cosd(eps) + AstroMath.tand(lat) * AstroMath.sind(eps));
-    double asc = AstroMath.toDeg(Math.atan2(y, x));
-    return AstroMath.norm360(asc);
+    double asc = AstroMath.norm360(AstroMath.toDeg(Math.atan2(y, x)));
+
+    // MC: ecliptic longitude of RAMC (Meeus)
+    double mcY = AstroMath.sind(ramc);
+    double mcX = AstroMath.cosd(ramc) * AstroMath.cosd(eps);
+    double mc = AstroMath.norm360(AstroMath.toDeg(Math.atan2(mcY, mcX)));
+    return new double[] {asc, mc};
   }
 
   @FunctionalInterface

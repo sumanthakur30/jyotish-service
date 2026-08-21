@@ -27,6 +27,9 @@ final class SwissEphemerisSupport {
   static final int SE_MARS = 4;
   static final int SE_JUPITER = 5;
   static final int SE_SATURN = 6;
+  static final int SE_URANUS = 7;
+  static final int SE_NEPTUNE = 8;
+  static final int SE_PLUTO = 9;
   static final int SE_MEAN_NODE = 10;
   static final int SE_TRUE_NODE = 11;
   static final int SEFLG_SWIEPH = 2;

@@ -93,6 +93,9 @@ class LahiriGoldenChartTest {
     assertEquals(GOLD_AYAN, chart.ayanamsaDeg(), 0.05, "ayanamsa");
     assertWithin(0.05, Planet.ASCENDANT, chart.ascendant().longitudeDeg(), DELHI_GOLD);
     for (PlanetPosition p : chart.planets()) {
+      if (p.planet().isOuter()) {
+        continue; // outers not in classical Delhi gold table
+      }
       assertWithin(0.05, p.planet(), p.longitudeDeg(), DELHI_GOLD);
     }
   }

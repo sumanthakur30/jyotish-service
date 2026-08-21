@@ -91,4 +91,24 @@ public final class PlanetPosition {
   public Double speedDegPerDay() {
     return speedDegPerDay;
   }
+
+  /** Copy with a different bhava house (Chalit rehouse). */
+  public PlanetPosition withHouse(int house) {
+    if (house == this.house) {
+      return this;
+    }
+    return new PlanetPosition(
+        planet,
+        longitudeDeg,
+        signIndex,
+        signName,
+        degreeInSign,
+        house,
+        nakshatraIndex,
+        nakshatraName,
+        pada,
+        retrograde,
+        combust,
+        speedDegPerDay);
+  }
 }

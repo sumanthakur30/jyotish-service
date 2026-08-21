@@ -17,4 +17,15 @@ public interface EphemerisProvider {
 
   /** True tropical ecliptic longitude of the local Ascendant (Lagna precursor). */
   double tropicalAscendant(double julianDayUt, double latitudeDeg, double longitudeDeg);
+
+  /**
+   * True tropical ecliptic longitude of the Midheaven (MC / 10th-angle precursor) for Sripati
+   * Chalit. Default implementations may derive it alongside the Ascendant.
+   */
+  double tropicalMidheaven(double julianDayUt, double latitudeDeg, double longitudeDeg);
+
+  /** True when this provider can compute Uranus / Neptune / Pluto. */
+  default boolean supportsOuterPlanets() {
+    return false;
+  }
 }

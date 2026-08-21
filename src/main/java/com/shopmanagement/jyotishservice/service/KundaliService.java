@@ -58,6 +58,7 @@ import com.shopmanagement.jyotishservice.engine.model.BirthMoment;
 import com.shopmanagement.jyotishservice.engine.model.ChartRequest;
 import com.shopmanagement.jyotishservice.engine.model.D1Chart;
 import com.shopmanagement.jyotishservice.engine.model.HouseCusp;
+import com.shopmanagement.jyotishservice.engine.model.HouseSystem;
 import com.shopmanagement.jyotishservice.engine.model.Planet;
 import com.shopmanagement.jyotishservice.engine.model.PlanetPosition;
 import com.shopmanagement.jyotishservice.engine.model.VargaChart;
@@ -103,12 +104,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Service
 public class KundaliService {
 
-  private static final List<ComingSoonFeature> COMING_SOON =
-      List.of(
-          new ComingSoonFeature("COMBUST", "Combust detection with classical orbs"),
-          new ComingSoonFeature("SHADBALA", "Full Shadbala (partial Naisargika/Dig/Sthana READY)"),
-          new ComingSoonFeature("YOGA_EXT", "Additional yogas beyond Phase 5 detectors"),
-          new ComingSoonFeature("DASHA_EXT", "Yogini / Chara / Ashtottari dasha systems"));
+  private static final ComingSoonFeature COMBUST =
+      new ComingSoonFeature("COMBUST", "Combust detection with classical orbs");
+  private static final ComingSoonFeature SHADBALA_FULL =
+      new ComingSoonFeature("SHADBALA", "Full Shadbala (partial Naisargika/Dig/Sthana READY)");
+  private static final ComingSoonFeature YOGA_EXT =
+      new ComingSoonFeature("YOGA_EXT", "Additional yogas beyond Phase 5 detectors");
+  private static final ComingSoonFeature DASHA_EXT =
+      new ComingSoonFeature("DASHA_EXT", "Yogini / Chara / Ashtottari dasha systems");
+  private static final ComingSoonFeature OUTER_PLANETS =
+      new ComingSoonFeature(
+          "OUTER_PLANETS", "Uranus / Neptune / Pluto on Spashta (enable Swiss ephemeris)");
 
   private final CalculationEngine calculationEngine;
   private final EphemerisProvider ephemerisProvider;
@@ -265,6 +271,13 @@ public class KundaliService {
     YogaReport yogas = calculationEngine.computeYogas(chart, d9);
     persistYogas(tenantId, snap.getId(), yogas);
 
+    if (Boolean.TRUE.equals(request.includeChalit())) {
+      D1Chart chalit =
+          calculationEngine.computeChalit(
+              chart, resolved.latitude().doubleValue(), resolved.longitude().doubleValue());
+      persistChalit(tenantId, snap.getId(), chalit);
+    }
+
     return toResponse(snap, toPlanetDto(chart.ascendant()), planetDtos, houseDtos);
   }
 
@@ -310,6 +323,16 @@ public class KundaliService {
     }
 
     List<ChartCatalogItem> items = new ArrayList<>();
+    boolean chalitReady = computed.contains(CalculationEngine.CHALIT_CHART_CODE);
+    items.add(
+        new ChartCatalogItem(
+            CalculationEngine.CHALIT_CHART_CODE,
+            "Bhava Chalit (Sripati)",
+            1,
+            true,
+            chalitReady,
+            chalitReady ? "READY" : "LAZY"));
+
     for (VargaCode code : VargaRegistry.all()) {
       boolean implemented = VargaRegistry.isImplemented(code);
       boolean isComputed = computed.contains(code.code());
@@ -336,11 +359,21 @@ public class KundaliService {
   /**
    * Returns a varga chart. D1 is served from D1 tables. Implemented Vargas are loaded if stored,
    * otherwise computed from D1 longitudes and persisted (lazy). Unimplemented → 501 Coming Soon.
+   * {@code CHALIT} is Sripati Bhava Chalit (opt-in; not a Parashara varga).
    */
   @Transactional
   public VargaChartResponse getChart(Long kundaliId, String vargaRaw) {
     String tenantId = requireTenant();
     requireSnapshot(kundaliId, tenantId);
+
+    if (isChalitCode(vargaRaw)) {
+      return divisionalChartRepository
+          .findByKundaliIdAndTenantIdAndVargaCode(
+              kundaliId, tenantId, CalculationEngine.CHALIT_CHART_CODE)
+          .map(row -> toChalitResponse(kundaliId, row, tenantId))
+          .orElseGet(() -> computeAndPersistChalit(kundaliId, tenantId));
+    }
+
     VargaCode code = VargaCode.parse(vargaRaw);
 
     if (!VargaRegistry.isImplemented(code)) {
@@ -357,6 +390,12 @@ public class KundaliService {
         .findByKundaliIdAndTenantIdAndVargaCode(kundaliId, tenantId, code.code())
         .map(row -> toVargaResponse(kundaliId, row, tenantId))
         .orElseGet(() -> computeAndPersist(kundaliId, tenantId, code));
+  }
+
+  private static boolean isChalitCode(String raw) {
+    return HouseSystem.tryParse(raw).filter(h -> h == HouseSystem.SRIPATI).isPresent()
+        || (raw != null
+            && CalculationEngine.CHALIT_CHART_CODE.equalsIgnoreCase(raw.trim()));
   }
 
   /**
@@ -1170,6 +1209,76 @@ public class KundaliService {
     return toVargaResponse(kundaliId, saved, tenantId);
   }
 
+  private VargaChartResponse computeAndPersistChalit(Long kundaliId, String tenantId) {
+    KundaliSnapshotEntity snap = requireSnapshot(kundaliId, tenantId);
+    D1Chart d1 = rebuildD1(kundaliId, tenantId, snap);
+    D1Chart chalit =
+        calculationEngine.computeChalit(
+            d1, snap.getLatitude().doubleValue(), snap.getLongitude().doubleValue());
+    DivisionalChartEntity saved = persistChalit(tenantId, kundaliId, chalit);
+    return toChalitResponse(kundaliId, saved, tenantId);
+  }
+
+  private DivisionalChartEntity persistChalit(String tenantId, Long kundaliId, D1Chart chalit) {
+    DivisionalChartEntity entity = new DivisionalChartEntity();
+    entity.setTenantId(tenantId);
+    entity.setKundaliId(kundaliId);
+    entity.setVargaCode(CalculationEngine.CHALIT_CHART_CODE);
+    entity.setCalculationEngineVersion(chalit.engineVersion());
+    entity.setHouseSystem(chalit.houseSystem());
+    entity.setAscendantLongitude(bd(chalit.ascendant().longitudeDeg(), 6));
+    entity.setAscendantSignIndex((short) chalit.ascendant().signIndex());
+    entity.setNotes(chalit.notes());
+    entity.setMetaJson(
+        "{\"chart\":\""
+            + CalculationEngine.CHALIT_CHART_CODE
+            + "\",\"houseSystem\":\""
+            + HouseSystem.SRIPATI.code()
+            + "\",\"method\":\"SRIPATI_PORPHYRY_CUSPS\",\"source\":\"D1_LONGITUDES\",\"engine\":\""
+            + chalit.engineVersion()
+            + "\"}");
+    entity = divisionalChartRepository.save(entity);
+
+    divisionalPlanetRepository.save(toDivPlanetEntity(tenantId, entity.getId(), chalit.ascendant()));
+    for (PlanetPosition p : chalit.planets()) {
+      divisionalPlanetRepository.save(toDivPlanetEntity(tenantId, entity.getId(), p));
+    }
+    for (HouseCusp h : chalit.houses()) {
+      DivisionalHousePositionEntity row = new DivisionalHousePositionEntity();
+      row.setTenantId(tenantId);
+      row.setDivisionalChartId(entity.getId());
+      row.setHouse((short) h.house());
+      row.setSignIndex((short) h.signIndex());
+      row.setSignName(h.signName());
+      row.setCuspLongitudeDeg(bd(h.cuspLongitudeDeg(), 6));
+      divisionalHouseRepository.save(row);
+    }
+    return entity;
+  }
+
+  private VargaChartResponse toChalitResponse(
+      Long kundaliId, DivisionalChartEntity row, String tenantId) {
+    List<PlanetDto> all = loadDivPlanets(row.getId(), tenantId);
+    PlanetDto asc =
+        all.stream().filter(p -> "ASCENDANT".equals(p.planetCode())).findFirst().orElse(null);
+    List<PlanetDto> planets =
+        all.stream().filter(p -> !"ASCENDANT".equals(p.planetCode())).toList();
+    List<HouseDto> houses = loadDivHouses(row.getId(), tenantId);
+    return new VargaChartResponse(
+        kundaliId,
+        row.getId(),
+        CalculationEngine.CHALIT_CHART_CODE,
+        "Bhava Chalit (Sripati)",
+        row.getCalculationEngineVersion(),
+        row.getHouseSystem(),
+        asc,
+        planets,
+        houses,
+        row.getNotes(),
+        false,
+        row.getCreatedAt());
+  }
+
   private DivisionalChartEntity persistVarga(String tenantId, Long kundaliId, VargaChart chart) {
     DivisionalChartEntity entity = new DivisionalChartEntity();
     entity.setTenantId(tenantId);
@@ -1236,6 +1345,9 @@ public class KundaliService {
     List<PlanetDto> planets =
         all.stream().filter(p -> !"ASCENDANT".equals(p.planetCode())).toList();
     List<HouseDto> houses = loadDivHouses(row.getId(), tenantId);
+    if (CalculationEngine.CHALIT_CHART_CODE.equalsIgnoreCase(row.getVargaCode())) {
+      return toChalitResponse(kundaliId, row, tenantId);
+    }
     VargaCode code = VargaCode.parse(row.getVargaCode());
     return new VargaChartResponse(
         kundaliId,
@@ -1451,7 +1563,7 @@ public class KundaliService {
     return new HouseDto(h.house(), h.signIndex(), h.signName(), bd(h.cuspLongitudeDeg(), 6));
   }
 
-  private static KundaliResponse toResponse(
+  private KundaliResponse toResponse(
       KundaliSnapshotEntity snap,
       PlanetDto ascendant,
       List<PlanetDto> planets,
@@ -1478,8 +1590,20 @@ public class KundaliService {
         planets,
         houses,
         snap.getNotes(),
-        COMING_SOON,
+        comingSoonFeatures(),
         snap.getCreatedAt());
+  }
+
+  private List<ComingSoonFeature> comingSoonFeatures() {
+    List<ComingSoonFeature> list = new ArrayList<>();
+    list.add(COMBUST);
+    list.add(SHADBALA_FULL);
+    list.add(YOGA_EXT);
+    list.add(DASHA_EXT);
+    if (!ephemerisProvider.supportsOuterPlanets()) {
+      list.add(OUTER_PLANETS);
+    }
+    return List.copyOf(list);
   }
 
   private static String displayName(String code) {

@@ -332,7 +332,7 @@ public class MatchingService {
       return new ResolvedChart(snap.getId(), snap.getAscendantSignIndex(), planets);
     }
     KundaliResponse generated =
-        kundaliService.generate(new GenerateRequest(profile.getId(), null, null));
+        kundaliService.generate(new GenerateRequest(profile.getId(), null, null, null));
     List<PlanetPosition> planets = loadPlanetPositions(generated.id(), tenantId);
     KundaliSnapshotEntity snap =
         kundaliRepository

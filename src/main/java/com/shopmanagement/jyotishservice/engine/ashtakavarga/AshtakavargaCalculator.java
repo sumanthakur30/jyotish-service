@@ -30,7 +30,7 @@ public final class AshtakavargaCalculator {
     Objects.requireNonNull(d1, "d1");
     EnumMap<Planet, Integer> signs = new EnumMap<>(Planet.class);
     for (PlanetPosition p : d1.planets()) {
-      if (!p.planet().isNode() && p.planet() != Planet.ASCENDANT) {
+      if (!p.planet().isNode() && p.planet() != Planet.ASCENDANT && !p.planet().isOuter()) {
         signs.put(p.planet(), p.signIndex());
       }
     }

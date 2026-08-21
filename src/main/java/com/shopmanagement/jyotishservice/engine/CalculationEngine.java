@@ -11,10 +11,12 @@ import com.shopmanagement.jyotishservice.engine.astro.ZodiacCatalog;
 import com.shopmanagement.jyotishservice.engine.ephemeris.EphemerisProvider;
 import com.shopmanagement.jyotishservice.engine.ephemeris.MeeusEphemeris;
 import com.shopmanagement.jyotishservice.engine.ephemeris.TropicalBody;
+import com.shopmanagement.jyotishservice.engine.houses.SripatiBhavaChalit;
 import com.shopmanagement.jyotishservice.engine.model.AyanamsaMode;
 import com.shopmanagement.jyotishservice.engine.model.ChartRequest;
 import com.shopmanagement.jyotishservice.engine.model.D1Chart;
 import com.shopmanagement.jyotishservice.engine.model.HouseCusp;
+import com.shopmanagement.jyotishservice.engine.model.HouseSystem;
 import com.shopmanagement.jyotishservice.engine.model.Planet;
 import com.shopmanagement.jyotishservice.engine.model.PlanetPosition;
 import com.shopmanagement.jyotishservice.engine.dasha.DashaCalculator;
@@ -47,13 +49,16 @@ import com.shopmanagement.jyotishservice.engine.yoga.YogaReport;
  * (D2/D3/D9/D10) via {@link VargaRegistry}, Vimshottari dasha via {@link DashaRegistry},
  * rule-based yogas via {@link YogaRegistry}, Kundali matching via {@link MatchingRegistry},
  * Gochar transit via {@link TransitRegistry}, Panchang + muhurat via {@link PanchangCalculator},
- * Ashtakavarga / partial Shadbala, and Sade Sati helpers. Whole-sign houses. Combust is stubbed
- * false (Coming Soon).
+ * Ashtakavarga / partial Shadbala, and Sade Sati helpers. Default houses are whole-sign; Sripati
+ * Bhava Chalit is opt-in via {@link #computeChalit}. Combust is stubbed false (Coming Soon).
  */
 public final class CalculationEngine {
 
-  /** Bumped to V1.7 for accuracy pack, Ashtakavarga, partial Shadbala, muhurat, Manglik cancel, Sade Sati. */
-  public static final String VERSION = "V1.7";
+  /** Bumped to V1.8 for Sripati Bhava Chalit + optional outer planets (Swiss). */
+  public static final String VERSION = "V1.8";
+
+  /** Catalog / API code for Nirayana Bhava Chalit (not a Parashara varga). */
+  public static final String CHALIT_CHART_CODE = "CHALIT";
 
   private static final EnumSet<Planet> CHART_PLANETS =
       EnumSet.of(
@@ -66,6 +71,9 @@ public final class CalculationEngine {
           Planet.SATURN,
           Planet.RAHU,
           Planet.KETU);
+
+  private static final EnumSet<Planet> OUTER_PLANETS =
+      EnumSet.of(Planet.URANUS, Planet.NEPTUNE, Planet.PLUTO);
 
   private final EphemerisProvider ephemeris;
 
@@ -81,15 +89,28 @@ public final class CalculationEngine {
     return VERSION;
   }
 
+  /**
+   * Sidereal D1 with {@link HouseSystem#WHOLE_SIGN} (default product behavior). Outer planets are
+   * appended only when the ephemeris supports them (Swiss); never used by yoga detectors.
+   */
   public D1Chart computeD1(ChartRequest request) {
+    return computeD1(request, HouseSystem.WHOLE_SIGN);
+  }
+
+  /**
+   * Sidereal D1. Pass {@link HouseSystem#SRIPATI} only for an explicit Chalit generate; normal
+   * kundali persistence must keep {@link HouseSystem#WHOLE_SIGN}.
+   */
+  public D1Chart computeD1(ChartRequest request, HouseSystem houseSystem) {
     Objects.requireNonNull(request, "request");
+    HouseSystem system = houseSystem != null ? houseSystem : HouseSystem.WHOLE_SIGN;
     double jd = AstroMath.julianDayUt(request.birth().toZonedDateTime().toInstant());
     AyanamsaMode mode = request.ayanamsa();
     double ayanamsa = AyanamsaCalculator.degrees(jd, mode);
+    double lat = request.birth().latitudeDeg();
+    double lon = request.birth().longitudeDeg();
 
-    double tropicalAsc =
-        ephemeris.tropicalAscendant(
-            jd, request.birth().latitudeDeg(), request.birth().longitudeDeg());
+    double tropicalAsc = ephemeris.tropicalAscendant(jd, lat, lon);
     double siderealAsc = AstroMath.norm360(tropicalAsc - ayanamsa);
     int lagnaSign = ZodiacCatalog.signIndex(siderealAsc);
 
@@ -102,27 +123,83 @@ public final class CalculationEngine {
       boolean retrograde = body.speedDegPerDay() < 0;
       planets.add(toPosition(planet, sidereal, lagnaSign, body.speedDegPerDay(), retrograde));
     }
+    if (ephemeris.supportsOuterPlanets()) {
+      for (Planet planet : OUTER_PLANETS) {
+        TropicalBody body = ephemeris.position(planet, jd);
+        double sidereal = AstroMath.norm360(body.longitudeDeg() - ayanamsa);
+        boolean retrograde = body.speedDegPerDay() < 0;
+        planets.add(toPosition(planet, sidereal, lagnaSign, body.speedDegPerDay(), retrograde));
+      }
+    }
 
-    List<HouseCusp> houses = wholeSignHouses(lagnaSign);
-
-    String notes =
-        request.birthTimeUnknown()
-            ? "Birth time unknown — Lagna and houses use noon local time; treat as approximate."
-            : "D1 whole-sign; combust Coming Soon; "
-                + ephemeris.code()
-                + " tropical + "
-                + mode.name()
-                + " ayanamsa.";
+    List<HouseCusp> houses;
+    String houseCode;
+    String notes;
+    if (system == HouseSystem.SRIPATI) {
+      double siderealMc =
+          AstroMath.norm360(ephemeris.tropicalMidheaven(jd, lat, lon) - ayanamsa);
+      double[] sandhi = SripatiBhavaChalit.sandhiCusps(siderealAsc, siderealMc);
+      houses = SripatiBhavaChalit.houseCusps(siderealAsc, siderealMc);
+      planets = rehouse(planets, sandhi);
+      ascendant = ascendant.withHouse(1);
+      houseCode = HouseSystem.SRIPATI.code();
+      notes =
+          "D1 Sripati/Porphyry Bhava Chalit (ASC=cusp1, MC=cusp10, quadrant trisect); combust Coming"
+              + " Soon; "
+              + ephemeris.code()
+              + " + "
+              + mode.name()
+              + ".";
+    } else {
+      houses = wholeSignHouses(lagnaSign);
+      houseCode = HouseSystem.WHOLE_SIGN.code();
+      notes =
+          request.birthTimeUnknown()
+              ? "Birth time unknown — Lagna and houses use noon local time; treat as approximate."
+              : "D1 whole-sign; combust Coming Soon; "
+                  + ephemeris.code()
+                  + " tropical + "
+                  + mode.name()
+                  + " ayanamsa."
+                  + (ephemeris.supportsOuterPlanets()
+                      ? " Outer planets (U/N/P) included for Spashta."
+                      : " Outer planets Coming Soon (enable Swiss).");
+    }
 
     return new D1Chart(
+        VERSION, mode, ayanamsa, jd, planets, houses, ascendant, houseCode, notes);
+  }
+
+  /**
+   * Opt-in Nirayana Bhava Chalit from an existing whole-sign D1: recomputes Sripati sandhi cusps
+   * from stored Lagna + MC at birth place, then rehouses grahas by longitude (does not copy Rashi
+   * houses).
+   */
+  public D1Chart computeChalit(D1Chart d1, double latitudeDeg, double longitudeDeg) {
+    Objects.requireNonNull(d1, "d1");
+    double siderealAsc = d1.ascendant().longitudeDeg();
+    double siderealMc =
+        AstroMath.norm360(
+            ephemeris.tropicalMidheaven(d1.julianDayUt(), latitudeDeg, longitudeDeg)
+                - d1.ayanamsaDeg());
+    double[] sandhi = SripatiBhavaChalit.sandhiCusps(siderealAsc, siderealMc);
+    List<HouseCusp> houses = SripatiBhavaChalit.houseCusps(siderealAsc, siderealMc);
+    List<PlanetPosition> planets = rehouse(d1.planets(), sandhi);
+    PlanetPosition ascendant = d1.ascendant().withHouse(1);
+    String notes =
+        "Nirayana Bhava Chalit (Sripati/Porphyry: ASC=cusp1, MC=cusp10, trisect quadrants); from D1"
+            + " longitudes; engine "
+            + VERSION
+            + ".";
+    return new D1Chart(
         VERSION,
-        mode,
-        ayanamsa,
-        jd,
+        d1.ayanamsaMode(),
+        d1.ayanamsaDeg(),
+        d1.julianDayUt(),
         planets,
         houses,
         ascendant,
-        "WHOLE_SIGN",
+        HouseSystem.SRIPATI.code(),
         notes);
   }
 
@@ -166,7 +243,7 @@ public final class CalculationEngine {
 
     List<PlanetPosition> planets = new ArrayList<>();
     for (PlanetLongitude pl : planetLongitudes) {
-      if (pl.planet() == Planet.ASCENDANT) {
+      if (pl.planet() == Planet.ASCENDANT || pl.planet().isOuter()) {
         continue;
       }
       double vLon = mapper.mapLongitude(pl.longitudeDeg());
@@ -192,6 +269,9 @@ public final class CalculationEngine {
 
     List<PlanetPosition> planets = new ArrayList<>();
     for (PlanetPosition p : d1.planets()) {
+      if (p.planet().isOuter()) {
+        continue;
+      }
       double vLon = mapper.mapLongitude(p.longitudeDeg());
       planets.add(
           toPosition(p.planet(), vLon, vLagnaSign, p.speedDegPerDay(), p.retrograde()));
@@ -298,6 +378,18 @@ public final class CalculationEngine {
       houses.add(new HouseCusp(h, signIndex, ZodiacCatalog.signName(signIndex), cusp));
     }
     return houses;
+  }
+
+  private static List<PlanetPosition> rehouse(List<PlanetPosition> planets, double[] sandhi) {
+    List<PlanetPosition> out = new ArrayList<>(planets.size());
+    for (PlanetPosition p : planets) {
+      if (p.planet() == Planet.ASCENDANT) {
+        out.add(p.withHouse(1));
+      } else {
+        out.add(p.withHouse(SripatiBhavaChalit.houseOf(p.longitudeDeg(), sandhi)));
+      }
+    }
+    return out;
   }
 
   static PlanetPosition toPosition(

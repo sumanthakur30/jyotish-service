@@ -34,7 +34,12 @@ public final class KundaliApi {
   public record GenerateRequest(
       Long birthProfileId,
       @Valid InlineBirthRequest birth,
-      @Size(max = 32) String ayanamsaCode) {}
+      @Size(max = 32) String ayanamsaCode,
+      /**
+       * When true, also compute and persist Sripati Bhava Chalit ({@code CHALIT}) on generate. D1
+       * itself always remains {@code WHOLE_SIGN}.
+       */
+      Boolean includeChalit) {}
 
   public record PlanetDto(
       String planetCode,
