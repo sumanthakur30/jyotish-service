@@ -35,7 +35,7 @@ public class JyotishStatusController {
     String active = ephemerisProvider.code();
     return new StatusResponse(
         "jyotish-service",
-        "10-ai+swiss-ephemeris",
+        "panchang+swiss-ephemeris",
         engineProperties.getVersion(),
         entitlementProperties.isEnabled(),
         entitlementProperties.getFlag(),

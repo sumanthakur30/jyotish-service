@@ -35,6 +35,8 @@ Sugam Jyotish bounded context — Vedic astrology calculation + Kundali SaaS.
 | `POST/GET/PUT/DELETE /api/v1/jyotish/clients` | Astrologer client CRUD (+ `?q=` search) |
 | `POST/GET/PUT/DELETE /api/v1/jyotish/appointments` | Appointments (+ filters `clientId`, `fromDate`, `toDate`, `status`) |
 | `POST /api/v1/jyotish/ai/ask` | AI Jyotish Assistant `{ kundaliId, question, topic? }` |
+| `GET /api/v1/jyotish/panchang?date=&lat=&lon=&timezone=` | Panchang (Tithi–Karana + sunrise/sunset; compute-only) |
+| `POST /api/v1/jyotish/panchang` | Same via JSON body |
 
 Flyway **V1**: workspace + birth profile tables.  
 Flyway **V2**: `kundali_snapshot`, `planetary_position`, `house_position`.  
@@ -45,14 +47,16 @@ Flyway **V6**: `matching_session`, `matching_koota_score`.
 Flyway **V7**: `transit_snapshot`, `transit_planet_position`.  
 Flyway **V8**: `kundali_report` (metadata; PDF files under `./data/reports`).  
 Flyway **V9**: `jyotish_client`, `jyotish_client_birth_profile`, `jyotish_appointment`.  
-Flyway **V10**: `jyotish_ai_ask` (AI ask audit/meter).
+Flyway **V10**: `jyotish_ai_ask` (AI ask audit/meter).  
+Panchang MVP is **compute-only** (no Flyway V11 cache yet).
 
-### Engine V1.5 + Phase 8–10 (+ Swiss ephemeris SPI)
+### Engine V1.6 + Panchang (+ Phase 8–10 + Swiss ephemeris SPI)
 
 - Sidereal Vedic D1 (Rashi), default Lahiri ayanamsa
 - **Ephemeris:** `jyotish.ephemeris.provider=MEEUS` (default) or `SWISS` (optional Thomas Mack pure-Java JAR — see `third_party/swiss-ephemeris/README.md`)
 - **Vargas / Dasha / Yoga / Matching / Transit** frameworks as in Phase 3–7
-- **Reports:** OpenPDF from stored snapshots — no recalculation; engine version stays **V1.5**
+- **Panchang:** Tithi, Vara, Nakshatra, Yoga, Karana at sunrise; sunrise/sunset; moonrise/moonset + Choghadiya + Rahu Kaal = Coming Soon
+- **Reports:** OpenPDF from stored snapshots — no recalculation
 - **CRM:** clients + appointments (tenant-isolated; not hospital appointment-service)
 - **AI:** `LlmProvider` HEURISTIC default (optional HTTP); context from verified snapshot only — never invents ephemeris
 - PDF storage: `jyotish.reports.storage-dir` (default `./data/reports`)
@@ -155,9 +159,43 @@ curl "http://localhost:8097/api/v1/jyotish/matching/1" \
   -H "X-Tenant-Id: JYOTISH-DEMO-01"
 ```
 
+## Panchang (example)
+
+```bash
+curl "http://localhost:8097/api/v1/jyotish/panchang?date=2024-01-01&lat=28.6139&lon=77.209&timezone=Asia/Kolkata&placeName=Delhi" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01"
+
+curl -X POST http://localhost:8097/api/v1/jyotish/panchang \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: JYOTISH-DEMO-01" \
+  -d "{\"date\":\"2024-01-01\",\"lat\":28.6139,\"lon\":77.209,\"timezone\":\"Asia/Kolkata\",\"placeName\":\"Delhi, India\"}"
+```
+
 ## Entitlements
 
-`jyotish.entitlement.enabled=false` in local profile.
+Local default: `jyotish.entitlement.enabled=false` (see `application-local.properties`) — no subscription calls; all heavy APIs work.
 
-When enabled, calls subscription-service feature flag `FEATURE_JYOTISH` (catalog TBD).  
-AI remote / SaaS gate stub: `FEATURE_JYOTISH_AI` (`jyotish.ai.entitlement-flag`).
+### Enable SaaS gates (prod / staging)
+
+```bash
+export JYOTISH_ENTITLEMENT_ENABLED=true
+export JYOTISH_SUBSCRIPTION_BASE_URL=http://localhost:8182   # subscription-service
+# optional fail-open if subscription unreachable:
+# export JYOTISH_ENTITLEMENT_FAIL_OPEN=true
+```
+
+When enabled, jyotish-service calls:
+
+`GET {base-url}/api/subscription/feature-flags/{FLAG}` with `X-Tenant-Id`.
+
+| Flag | Endpoints |
+|------|-----------|
+| `FEATURE_JYOTISH` | Kundali generate/read, transit |
+| `FEATURE_JYOTISH_MATCHING` | Matching |
+| `FEATURE_JYOTISH_REPORTS` | Reports / PDF |
+| `FEATURE_JYOTISH_AI` | `POST /api/v1/jyotish/ai/ask` |
+
+Catalog / plan seeds: [`docs/PLATFORM-JYOTISH-SUBSCRIPTION-SEED.md`](docs/PLATFORM-JYOTISH-SUBSCRIPTION-SEED.md)  
+Assign `jyotish-starter` / `jyotish-professional` / `jyotish-enterprise` in Super Admin → Platform Subscription.
+
+UI: `GET /api/v1/jyotish/status` → `entitlementEnabled`; when true, `GET /api/v1/jyotish/entitlements` drives upgrade / tab gating.
