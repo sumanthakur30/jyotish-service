@@ -32,6 +32,24 @@ class PlaceCatalogServiceTest {
   }
 
   @Test
+  void findsJharkhandDistrictsByStateName() {
+    var result = service.search("jharkhand");
+    assertFalse(result.items().isEmpty());
+    assertTrue(result.items().stream().anyMatch(p -> p.placeName().startsWith("Ranchi")));
+    assertTrue(result.items().stream().anyMatch(p -> p.placeName().startsWith("Bokaro")));
+    assertTrue(result.items().stream().anyMatch(p -> p.placeName().startsWith("Jamshedpur")));
+    assertTrue(result.items().stream().allMatch(p -> p.placeName().contains("Jharkhand")));
+  }
+
+  @Test
+  void findsBokaroAndDaltonganjByCityName() {
+    assertEquals(1, service.search("Bokaro").items().size());
+    assertTrue(service.search("Bokaro").items().get(0).placeName().contains("Bokaro"));
+    assertEquals(1, service.search("Daltonganj").items().size());
+    assertTrue(service.search("Daltonganj").items().get(0).placeName().contains("Medininagar"));
+  }
+
+  @Test
   void findsPatnaByCityName() {
     var result = service.search("Patna");
     assertEquals(1, result.items().size());

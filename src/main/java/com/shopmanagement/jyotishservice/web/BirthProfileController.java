@@ -20,8 +20,8 @@ import com.shopmanagement.jyotishservice.api.BirthProfileApi.ProfileResponse;
 import com.shopmanagement.jyotishservice.api.BirthProfileApi.UpsertProfileRequest;
 import com.shopmanagement.jyotishservice.api.BirthProfileApi.WorkspaceBootstrapRequest;
 import com.shopmanagement.jyotishservice.api.BirthProfileApi.WorkspaceResponse;
+import com.shopmanagement.jyotishservice.service.BirthPlaceSearchService;
 import com.shopmanagement.jyotishservice.service.BirthProfileService;
-import com.shopmanagement.jyotishservice.service.PlaceCatalogService;
 import com.shopmanagement.jyotishservice.service.WorkspaceService;
 
 import jakarta.validation.Valid;
@@ -31,15 +31,15 @@ import jakarta.validation.Valid;
 public class BirthProfileController {
 
   private final BirthProfileService birthProfileService;
-  private final PlaceCatalogService placeCatalogService;
+  private final BirthPlaceSearchService birthPlaceSearchService;
   private final WorkspaceService workspaceService;
 
   public BirthProfileController(
       BirthProfileService birthProfileService,
-      PlaceCatalogService placeCatalogService,
+      BirthPlaceSearchService birthPlaceSearchService,
       WorkspaceService workspaceService) {
     this.birthProfileService = birthProfileService;
-    this.placeCatalogService = placeCatalogService;
+    this.birthPlaceSearchService = birthPlaceSearchService;
     this.workspaceService = workspaceService;
   }
 
@@ -59,7 +59,7 @@ public class BirthProfileController {
 
   @GetMapping("/places")
   public PlaceSearchResponse places(@RequestParam(required = false) String q) {
-    return placeCatalogService.search(q);
+    return birthPlaceSearchService.search(q);
   }
 
   @PostMapping("/profiles")

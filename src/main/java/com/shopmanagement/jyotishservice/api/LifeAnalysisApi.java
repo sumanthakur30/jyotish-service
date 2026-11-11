@@ -17,7 +17,27 @@ public final class LifeAnalysisApi {
       Long kundaliId,
       List<CategorySummary> categories,
       /** Shared calculated strip (same Dasha/Gochar for every card). Null lords if no stored rows. */
-      CalculatedTimelineStrip calculatedTimeline) {}
+      CalculatedTimelineStrip calculatedTimeline,
+      /** Birth-to-future Vimshottari MAHA chapters — the year-wise life story. */
+      List<LifeStoryChapter> lifeStory) {}
+
+  public record LifeStoryChapter(
+      String lordCode,
+      String lordNameEn,
+      String lordNameHi,
+      Instant startAt,
+      Instant endAt,
+      int fromYear,
+      int toYear,
+      boolean current,
+      boolean past,
+      String themeEn,
+      String themeHi,
+      List<String> focusCategories,
+      String focusLineEn,
+      String focusLineHi,
+      String meaningEn,
+      String meaningHi) {}
 
   public record CategorySummary(
       String category,
@@ -31,7 +51,24 @@ public final class LifeAnalysisApi {
        * Vimshottari only — never invented.
        */
       String currentDashaLine,
-      Instant currentDashaEndAt) {}
+      Instant currentDashaEndAt,
+      /** Per-topic D1 facts for the dashboard card. Null only if chart rows are missing. */
+      CategoryCardFacts facts) {}
+
+  /** Compact bilingual snapshot for one life-topic card. Facts only — not predictions. */
+  public record CategoryCardFacts(
+      List<String> houseLinesEn,
+      List<String> houseLinesHi,
+      String grahasLineEn,
+      String grahasLineHi,
+      String summaryEn,
+      String summaryHi,
+      /** Plain “what this means” — not a prediction. */
+      String meaningEn,
+      String meaningHi,
+      int emphasisLevel,
+      String emphasisLabelEn,
+      String emphasisLabelHi) {}
 
   public record AnalysisDetailResponse(
       Long id,

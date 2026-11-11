@@ -63,10 +63,11 @@ final class NorthIndianPdfDrawer {
     cb.lineTo(right, top);
     cb.moveTo(left, top);
     cb.lineTo(right, bottom);
-    cb.moveTo(midX, bottom);
-    cb.lineTo(midX, top);
-    cb.moveTo(left, midY);
+    cb.moveTo(midX, top);
     cb.lineTo(right, midY);
+    cb.lineTo(midX, bottom);
+    cb.lineTo(left, midY);
+    cb.closePath();
     cb.stroke();
     cb.restoreState();
 
@@ -130,20 +131,20 @@ final class NorthIndianPdfDrawer {
 
   private static float[][] houseCenters(float left, float bottom, float size) {
     float q = size / 4f;
-    // Order h1..h12 matching UI layout
+    // Anti-clockwise NI (H1 top, H2 top-left, H12 top-right). PDF y-up.
     return new float[][] {
-      {left + 2 * q, bottom + 3.2f * q}, // 1 top
-      {left + 0.7f * q, bottom + 3.2f * q}, // 2
-      {left + 0.7f * q, bottom + 2.2f * q}, // 3
-      {left + 0.7f * q, bottom + 1.2f * q}, // 4
-      {left + 0.7f * q, bottom + 0.35f * q}, // 5
-      {left + 1.5f * q, bottom + 0.35f * q}, // 6
-      {left + 2.5f * q, bottom + 0.35f * q}, // 7
-      {left + 3.3f * q, bottom + 0.35f * q}, // 8
-      {left + 3.3f * q, bottom + 1.2f * q}, // 9
-      {left + 3.3f * q, bottom + 2.2f * q}, // 10
-      {left + 3.3f * q, bottom + 3.2f * q}, // 11
-      {left + 2.5f * q, bottom + 3.2f * q}, // 12
+      {left + 2 * q, bottom + 2.85f * q}, // 1 top
+      {left + 0.92f * q, bottom + 3.48f * q}, // 2 top-left
+      {left + 0.52f * q, bottom + 2.92f * q}, // 3 left-upper
+      {left + 0.92f * q, bottom + 2 * q}, // 4 left
+      {left + 0.52f * q, bottom + 1.08f * q}, // 5 left-lower
+      {left + 0.92f * q, bottom + 0.52f * q}, // 6 bottom-left
+      {left + 2 * q, bottom + 1.15f * q}, // 7 bottom
+      {left + 3.08f * q, bottom + 0.52f * q}, // 8 bottom-right
+      {left + 3.48f * q, bottom + 1.08f * q}, // 9 right-lower
+      {left + 3.08f * q, bottom + 2 * q}, // 10 right
+      {left + 3.48f * q, bottom + 2.92f * q}, // 11 right-upper
+      {left + 3.08f * q, bottom + 3.48f * q}, // 12 top-right
     };
   }
 }

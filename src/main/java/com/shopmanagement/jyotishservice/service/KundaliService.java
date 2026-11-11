@@ -281,6 +281,110 @@ public class KundaliService {
     return toResponse(snap, toPlanetDto(chart.ascendant()), planetDtos, houseDtos);
   }
 
+  /**
+   * Recompute an existing snapshot from its stored birth stamp using N.C. Lahiri. Replaces D1
+   * grahas/houses and eager D9/dasha/yoga (and Chalit) so /kundali/{id} shows current engine
+   * values without changing the URL.
+   */
+  @Transactional
+  public KundaliResponse regenerate(Long id) {
+    String tenantId = requireTenant();
+    KundaliSnapshotEntity snap = requireSnapshot(id, tenantId);
+
+    ZoneId zone;
+    try {
+      zone = ZoneId.of(snap.getTimeZone());
+    } catch (Exception ex) {
+      throw new IllegalArgumentException("Invalid time zone: " + snap.getTimeZone());
+    }
+    LocalTime time =
+        snap.isBirthTimeUnknown()
+            ? LocalTime.NOON
+            : (snap.getBirthTime() != null ? snap.getBirthTime() : LocalTime.NOON);
+    BirthMoment moment =
+        new BirthMoment(
+            snap.getBirthDate(),
+            time,
+            zone,
+            snap.getLatitude().doubleValue(),
+            snap.getLongitude().doubleValue(),
+            snap.getPlaceName());
+
+    AyanamsaMode ayanamsa = AyanamsaMode.LAHIRI;
+    D1Chart chart =
+        calculationEngine.computeD1(new ChartRequest(moment, ayanamsa, snap.isBirthTimeUnknown()));
+
+    clearComputedRows(tenantId, id);
+
+    snap.setAyanamsaCode(ayanamsa.name());
+    snap.setAyanamsaDeg(bd(chart.ayanamsaDeg(), 6));
+    snap.setHouseSystem(chart.houseSystem());
+    snap.setCalculationEngineVersion(chart.engineVersion());
+    snap.setJulianDayUt(bd(chart.julianDayUt(), 8));
+    snap.setAscendantLongitude(bd(chart.ascendant().longitudeDeg(), 6));
+    snap.setAscendantSignIndex((short) chart.ascendant().signIndex());
+    snap.setNotes(chart.notes());
+    snap.setInputJson(buildSnapshotInputJson(snap.getBirthProfileId() != null, ayanamsa));
+    snap = kundaliRepository.save(snap);
+
+    List<PlanetDto> planetDtos = new ArrayList<>();
+    for (PlanetPosition p : chart.planets()) {
+      planetaryRepository.save(toPlanetEntity(tenantId, snap.getId(), p));
+      planetDtos.add(toPlanetDto(p));
+    }
+    planetaryRepository.save(toPlanetEntity(tenantId, snap.getId(), chart.ascendant()));
+
+    List<HouseDto> houseDtos = new ArrayList<>();
+    for (HouseCusp h : chart.houses()) {
+      HousePositionEntity row = new HousePositionEntity();
+      row.setTenantId(tenantId);
+      row.setKundaliId(snap.getId());
+      row.setHouse((short) h.house());
+      row.setSignIndex((short) h.signIndex());
+      row.setSignName(h.signName());
+      row.setCuspLongitudeDeg(bd(h.cuspLongitudeDeg(), 6));
+      houseRepository.save(row);
+      houseDtos.add(toHouseDto(h));
+    }
+
+    VargaChart d9 = calculationEngine.computeVarga(chart, VargaCode.D9);
+    persistVarga(tenantId, snap.getId(), d9);
+
+    Instant birthAt = moment.toZonedDateTime().toInstant();
+    double moonLon =
+        chart.planets().stream()
+            .filter(p -> p.planet() == Planet.MOON)
+            .mapToDouble(PlanetPosition::longitudeDeg)
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException("Moon missing from D1 chart"));
+    persistDasha(
+        tenantId,
+        snap.getId(),
+        calculationEngine.computeDasha(DashaSystemCode.VIMSHOTTARI, moonLon, birthAt));
+    persistYogas(tenantId, snap.getId(), calculationEngine.computeYogas(chart, d9));
+    persistChalit(
+        tenantId,
+        snap.getId(),
+        calculationEngine.computeChalit(
+            chart, snap.getLatitude().doubleValue(), snap.getLongitude().doubleValue()));
+
+    return toResponse(snap, toPlanetDto(chart.ascendant()), planetDtos, houseDtos);
+  }
+
+  private void clearComputedRows(String tenantId, Long kundaliId) {
+    ashtakavargaResultRepository.deleteByKundaliIdAndTenantId(kundaliId, tenantId);
+    shadbalaResultRepository.deleteByKundaliIdAndTenantId(kundaliId, tenantId);
+    yogaResultRepository.deleteByKundaliIdAndTenantId(kundaliId, tenantId);
+    dashaPeriodRepository.deleteByKundaliIdAndTenantIdAndSystemCode(
+        kundaliId, tenantId, DashaSystemCode.VIMSHOTTARI.code());
+    divisionalChartRepository.deleteByKundaliIdAndTenantId(kundaliId, tenantId);
+    planetaryRepository.deleteByKundaliIdAndTenantId(kundaliId, tenantId);
+    houseRepository.deleteByKundaliIdAndTenantId(kundaliId, tenantId);
+    planetaryRepository.flush();
+    houseRepository.flush();
+    divisionalChartRepository.flush();
+  }
+
   @Transactional(readOnly = true)
   public KundaliResponse get(Long id) {
     String tenantId = requireTenant();

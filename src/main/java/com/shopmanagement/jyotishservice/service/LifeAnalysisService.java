@@ -38,6 +38,7 @@ import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.SearchHit;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.SearchResponse;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.UpsertAnalysisRequest;
 import com.shopmanagement.jyotishservice.api.LifeAnalysisApi.UpsertPeriodRequest;
+import com.shopmanagement.jyotishservice.engine.explain.LifeStoryComposer;
 import com.shopmanagement.jyotishservice.engine.life.LifeCategory;
 import com.shopmanagement.jyotishservice.engine.model.Planet;
 import com.shopmanagement.jyotishservice.filter.TenantContextFilter;
@@ -129,6 +130,17 @@ public class LifeAnalysisService {
             : (strip.currentDasha() != null && strip.currentDasha().maha() != null
                 ? strip.currentDasha().maha().endAt()
                 : null);
+    String mahaLord =
+        strip.currentDasha() != null && strip.currentDasha().maha() != null
+            ? strip.currentDasha().maha().lordCode()
+            : null;
+    String antarLord =
+        strip.currentDasha() != null && strip.currentDasha().antar() != null
+            ? strip.currentDasha().antar().lordCode()
+            : null;
+    var houses = houseRepository.findByKundaliIdAndTenantIdOrderByHouseAsc(kundaliId, tenantId);
+    var planets =
+        planetaryRepository.findByKundaliIdAndTenantIdOrderByPlanetCodeAsc(kundaliId, tenantId);
     Map<String, LifeAnalysisEntity> existing = new LinkedHashMap<>();
     for (LifeAnalysisEntity row :
         analysisRepository.findByKundaliIdAndTenantIdOrderByCategoryAsc(kundaliId, tenantId)) {
@@ -151,9 +163,17 @@ public class LifeAnalysisService {
               row != null ? row.getUpdatedAt() : null,
               row == null || row.isIncludeInReport(),
               dashaLine,
-              dashaEnd));
+              dashaEnd,
+              indicatorBuilder.preview(cat, houses, planets, mahaLord, antarLord)));
     }
-    return new DashboardResponse(kundaliId, cards, strip);
+    return new DashboardResponse(
+        kundaliId,
+        cards,
+        strip,
+        LifeStoryComposer.fromMaha(
+            dashaRepository.findByKundaliIdAndTenantIdAndSystemCodeOrderByStartAtAscSequenceNoAsc(
+                kundaliId, tenantId, VIMSHOTTARI),
+            Instant.now()));
   }
 
   @Transactional(readOnly = true)

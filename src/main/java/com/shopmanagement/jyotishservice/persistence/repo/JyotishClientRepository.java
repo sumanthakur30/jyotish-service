@@ -13,6 +13,12 @@ public interface JyotishClientRepository extends JpaRepository<JyotishClientEnti
 
   Optional<JyotishClientEntity> findByIdAndTenantIdAndDeletedAtIsNull(Long id, String tenantId);
 
+  Optional<JyotishClientEntity> findFirstByTenantIdAndMobileAndDeletedAtIsNull(
+      String tenantId, String mobile);
+
+  Optional<JyotishClientEntity> findFirstByTenantIdAndEmailIgnoreCaseAndDeletedAtIsNull(
+      String tenantId, String email);
+
   long countByTenantIdAndDeletedAtIsNull(String tenantId);
 
   @Query(

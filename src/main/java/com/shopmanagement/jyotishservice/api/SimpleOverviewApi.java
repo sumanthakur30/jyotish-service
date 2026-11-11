@@ -86,7 +86,11 @@ public final class SimpleOverviewApi {
       List<FactBullet> factBullets,
       List<String> relevantPlanetLinesEn,
       List<String> relevantPlanetLinesHi,
-      List<Integer> focusHouses) {}
+      List<Integer> focusHouses,
+      /** 1–5: how much the current dasha lights this area — not a luck score. */
+      int emphasisLevel,
+      String emphasisLabelEn,
+      String emphasisLabelHi) {}
 
   /**
    * Upcoming chapter row — print-style: dates · lord · natal house/sign when D1 placement exists.

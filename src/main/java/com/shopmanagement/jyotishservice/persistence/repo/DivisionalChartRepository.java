@@ -14,4 +14,8 @@ public interface DivisionalChartRepository extends JpaRepository<DivisionalChart
 
   Optional<DivisionalChartEntity> findByKundaliIdAndTenantIdAndVargaCode(
       Long kundaliId, String tenantId, String vargaCode);
+
+  @org.springframework.data.jpa.repository.Modifying
+  @org.springframework.transaction.annotation.Transactional
+  void deleteByKundaliIdAndTenantId(Long kundaliId, String tenantId);
 }

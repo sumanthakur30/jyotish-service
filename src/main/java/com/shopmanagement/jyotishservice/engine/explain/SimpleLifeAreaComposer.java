@@ -12,6 +12,7 @@ import com.shopmanagement.jyotishservice.api.KundaliApi.PlanetDto;
 import com.shopmanagement.jyotishservice.api.SimpleOverviewApi.FactBullet;
 import com.shopmanagement.jyotishservice.api.SimpleOverviewApi.LifeAreaCard;
 import com.shopmanagement.jyotishservice.engine.explain.DashaLordThemes.Theme;
+import com.shopmanagement.jyotishservice.engine.explain.LifeAreaPlainCopy;
 import com.shopmanagement.jyotishservice.engine.explain.SimpleExplanationComposer.LordPlacement;
 import com.shopmanagement.jyotishservice.engine.life.LifeCategory;
 
@@ -149,8 +150,29 @@ public final class SimpleLifeAreaComposer {
             ? "संग्रहीत कुंडली से केंद्र भाव अभी उपलब्ध नहीं।"
             : String.join("; ", focusPartsHi);
 
-    List<String> parasEn = buildParagraphsEn(category, focusPartsEn, planetLinesEn);
-    List<String> parasHi = buildParagraphsHi(category, focusPartsHi, planetLinesHi);
+    List<String> parasEn = new ArrayList<>();
+    List<String> parasHi = new ArrayList<>();
+    List<Integer> occupied = new ArrayList<>();
+    for (int house : category.indicatorHouses()) {
+      String occ = occupantsLine(planetList, house);
+      if (occ != null && !occ.isBlank()) {
+        occupied.add(house);
+      }
+    }
+    Integer mahaHouse = mahaPlacement != null && mahaPlacement.house() > 0 ? mahaPlacement.house() : null;
+    Integer antarHouse =
+        antarPlacement != null && antarPlacement.house() > 0 ? antarPlacement.house() : null;
+    var copy =
+        LifeAreaPlainCopy.of(
+            category, occupied, mahaLordCode, mahaHouse, antarLordCode, antarHouse);
+    parasEn.add(copy.meaningEn());
+    parasHi.add(copy.meaningHi());
+    if (!planetLinesEn.isEmpty()) {
+      parasEn.add("In this chart: " + String.join("; ", planetLinesEn) + ".");
+    }
+    if (!planetLinesHi.isEmpty()) {
+      parasHi.add("इस कुंडली में: " + String.join("; ", planetLinesHi) + "।");
+    }
 
     return new LifeAreaCard(
         category.code(),
@@ -171,7 +193,10 @@ public final class SimpleLifeAreaComposer {
         List.copyOf(bullets),
         List.copyOf(planetLinesEn),
         List.copyOf(planetLinesHi),
-        List.copyOf(category.indicatorHouses()));
+        List.copyOf(category.indicatorHouses()),
+        copy.emphasisLevel(),
+        copy.emphasisLabelEn(),
+        copy.emphasisLabelHi());
   }
 
   /** Print-style placement + short gloss for an upcoming period lord (D1 only). */

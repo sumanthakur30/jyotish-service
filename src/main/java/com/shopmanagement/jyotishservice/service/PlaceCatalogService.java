@@ -66,7 +66,32 @@ public class PlaceCatalogService {
           place("Danapur, Bihar, India", "IN", "25.6341000", "85.0450000", "Asia/Kolkata"),
           place("Dehri, Bihar, India", "IN", "24.9025000", "84.1822000", "Asia/Kolkata"),
           place("Kishanganj, Bihar, India", "IN", "26.1025000", "87.9550000", "Asia/Kolkata"),
-          place("Forbesganj, Bihar, India", "IN", "26.3005000", "87.2655000", "Asia/Kolkata"));
+          place("Forbesganj, Bihar, India", "IN", "26.3005000", "87.2655000", "Asia/Kolkata"),
+          // Jharkhand — district HQs / major cities (search "Jharkhand" or city name)
+          place("Ranchi, Jharkhand, India", "IN", "23.3441000", "85.3096000", "Asia/Kolkata"),
+          place("Jamshedpur, Jharkhand, India", "IN", "22.8046000", "86.2029000", "Asia/Kolkata"),
+          place("Dhanbad, Jharkhand, India", "IN", "23.7957000", "86.4304000", "Asia/Kolkata"),
+          place("Bokaro, Jharkhand, India", "IN", "23.6693000", "86.1511000", "Asia/Kolkata"),
+          place("Deoghar, Jharkhand, India", "IN", "24.4764000", "86.6950000", "Asia/Kolkata"),
+          place("Hazaribagh, Jharkhand, India", "IN", "23.9925000", "85.3616000", "Asia/Kolkata"),
+          place("Giridih, Jharkhand, India", "IN", "24.1913000", "86.2996000", "Asia/Kolkata"),
+          place("Ramgarh, Jharkhand, India", "IN", "23.6306000", "85.5193000", "Asia/Kolkata"),
+          place("Chaibasa, Jharkhand, India", "IN", "22.5540000", "85.8070000", "Asia/Kolkata"),
+          place("Dumka, Jharkhand, India", "IN", "24.2676000", "87.2497000", "Asia/Kolkata"),
+          place("Godda, Jharkhand, India", "IN", "24.8270000", "87.2125000", "Asia/Kolkata"),
+          place("Sahibganj, Jharkhand, India", "IN", "25.2425000", "87.6324000", "Asia/Kolkata"),
+          place("Pakur, Jharkhand, India", "IN", "24.6337000", "87.8499000", "Asia/Kolkata"),
+          place("Jamtara, Jharkhand, India", "IN", "23.9630000", "86.8020000", "Asia/Kolkata"),
+          place("Gumla, Jharkhand, India", "IN", "23.0436000", "84.5414000", "Asia/Kolkata"),
+          place("Lohardaga, Jharkhand, India", "IN", "23.4336000", "84.6796000", "Asia/Kolkata"),
+          place("Simdega, Jharkhand, India", "IN", "22.6150000", "84.5022000", "Asia/Kolkata"),
+          place("Khunti, Jharkhand, India", "IN", "23.0715000", "85.2784000", "Asia/Kolkata"),
+          place("Chatra, Jharkhand, India", "IN", "24.2065000", "84.8709000", "Asia/Kolkata"),
+          place("Koderma, Jharkhand, India", "IN", "24.4675000", "85.5943000", "Asia/Kolkata"),
+          place("Medininagar (Daltonganj), Jharkhand, India", "IN", "24.0396000", "84.0658000", "Asia/Kolkata"),
+          place("Latehar, Jharkhand, India", "IN", "23.7442000", "84.4999000", "Asia/Kolkata"),
+          place("Garhwa, Jharkhand, India", "IN", "24.1690000", "83.8070000", "Asia/Kolkata"),
+          place("Seraikela, Jharkhand, India", "IN", "22.6997000", "85.9310000", "Asia/Kolkata"));
 
   public PlaceSearchResponse search(String q) {
     String needle = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);

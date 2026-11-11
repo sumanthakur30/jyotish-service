@@ -2,7 +2,7 @@ package com.shopmanagement.jyotishservice.engine.model;
 
 /** Configurable sidereal ayanamsa. Default Lahiri (Chitrapaksha). */
 public enum AyanamsaMode {
-  LAHIRI("Lahiri / Chitrapaksha"),
+  LAHIRI("N.C. Lahiri / Chitrapaksha"),
   RAMAN("B.V. Raman"),
   KP("Krishnamurti");
 
@@ -20,9 +20,10 @@ public enum AyanamsaMode {
     if (code == null || code.isBlank()) {
       return LAHIRI;
     }
-    return switch (code.trim().toUpperCase()) {
+    return switch (code.trim().toUpperCase().replace(' ', '_').replace('-', '_')) {
       case "RAMAN" -> RAMAN;
       case "KP", "KRISHNAMURTI" -> KP;
+      case "LAHIRI", "NC_LAHIRI", "NCLAHIRI", "CHITRAPAKSHA" -> LAHIRI;
       default -> LAHIRI;
     };
   }

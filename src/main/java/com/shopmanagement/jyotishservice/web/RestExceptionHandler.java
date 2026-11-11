@@ -96,6 +96,7 @@ public class RestExceptionHandler {
     payload.put("message", message);
     payload.put("status", status.value());
     payload.put("timestamp", Instant.now().toString());
+    payload.put("error", Map.of("message", message));
     return ResponseEntity.status(status).body(payload);
   }
 }

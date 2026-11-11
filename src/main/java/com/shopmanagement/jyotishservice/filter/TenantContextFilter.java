@@ -90,9 +90,13 @@ public class TenantContextFilter extends OncePerRequestFilter {
     return CURRENT_AUTH_ROLE.get();
   }
 
+  public static void bindTenant(String tenantId) {
+    CURRENT_TENANT.set(tenantId);
+  }
+
   /** Test hook — do not use in production request paths. */
   public static void bindTenantForTests(String tenantId) {
-    CURRENT_TENANT.set(tenantId);
+    bindTenant(tenantId);
   }
 
   /** Test hook — do not use in production request paths. */
@@ -108,6 +112,7 @@ public class TenantContextFilter extends OncePerRequestFilter {
         || uri.startsWith("/swagger-ui")
         || uri.startsWith("/v3/api-docs")
         || uri.startsWith("/webjars")
-        || uri.equals("/api/v1/jyotish/status");
+        || uri.equals("/api/v1/jyotish/status")
+        || uri.startsWith("/api/v1/jyotish/public/");
   }
 }

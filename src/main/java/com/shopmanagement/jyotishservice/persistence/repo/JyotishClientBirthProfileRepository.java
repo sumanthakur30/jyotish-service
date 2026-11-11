@@ -15,6 +15,9 @@ public interface JyotishClientBirthProfileRepository
   List<JyotishClientBirthProfileEntity> findByClientIdAndTenantIdOrderByCreatedAtAsc(
       Long clientId, String tenantId);
 
+  boolean existsByClientIdAndBirthProfileIdAndTenantId(
+      Long clientId, Long birthProfileId, String tenantId);
+
   @Modifying(clearAutomatically = true)
   @Query(
       "delete from JyotishClientBirthProfileEntity l where l.clientId = :clientId and l.tenantId = :tenantId")

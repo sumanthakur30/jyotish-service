@@ -53,6 +53,13 @@ public class KundaliController {
     return kundaliService.generate(body);
   }
 
+  /** Recompute stored kundali in place (N.C. Lahiri). Same id — used by UI Recalculate. */
+  @PostMapping("/{id}/regenerate")
+  public KundaliResponse regenerate(@PathVariable Long id) {
+    entitlementGuard.requireJyotishAccess();
+    return kundaliService.regenerate(id);
+  }
+
   @GetMapping("/{id}")
   public KundaliResponse get(@PathVariable Long id) {
     entitlementGuard.requireJyotishAccess();

@@ -71,6 +71,8 @@ class SimpleLifeAreaComposerTest {
             .anyMatch(l -> l.toLowerCase().contains("venus")));
     assertFalse(career.summaryParagraphsEn().isEmpty());
     assertFalse(marriage.summaryParagraphsHi().isEmpty());
+    assertTrue(career.summaryParagraphsEn().get(0).contains("Career"));
+    assertTrue(marriage.summaryParagraphsEn().get(0).contains("Marriage"));
     assertTrue(career.factBullets().stream().anyMatch(f -> "H10".equals(f.code())));
     assertTrue(marriage.factBullets().stream().anyMatch(f -> "H7".equals(f.code())));
     // Duplicate dasha strip fields must stay empty on cards
